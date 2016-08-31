@@ -10,7 +10,7 @@ class cluster_DPA:
     def __init__(self,dim,trj_tot,dmat=None,stride=1):
 
         #### store internal variables
-#        self.merge=merge # set to False if you don't want to merge non-significative clusters
+#        self.merge=merge # set to False if you don't want to merge non-significative clusters THIS DOES NOT WORK
         self.merge=True # set to False if you don't want to merge non-significative clusters
         ### compute the distance matrix if not provided ( in this way it should be deleted at the end of the function. suggested to avoid large memory consumption)
         if dmat==None:
@@ -19,20 +19,21 @@ class cluster_DPA:
 
         self.trj_tot=trj_tot #trajectory on thich I made the clustering (a subset of the total data set, usually)
                              #should be shaped (N.frames)x(N.coords)
-
+        print 'cacca'
         if stride!=1:
             print 'stride different from 1 not supported yet'
+            return
 
         self.ND=len(dmat)
         self.Npoints=len(trj_tot)
         self.dim=dim
 
-
         ### perform the clustering
         self.__clustering(dmat)
         ### check for errors
-        print self.id_err
-        if self.__errorcheck(): return
+        #print self.id_err
+        assert not self.__errorcheck(), 'Problem in clustering'
+#        if self.__errorcheck(): return
         ### assign densities of nearest-neighbours to the filtered points
         f1=np.where(self.filt==1)[0]
         f0=np.where(self.filt==0)[0]
@@ -125,6 +126,50 @@ class cluster_DPA:
             ctrajs.append(np.array(ct))
             it+=1
         return ctrajs
+
+    ### CTRAJS 
+    def assign_w_rev(self,tica_traj):
+        # this part takes some time
+        ### assign both forward and reverse trajectories
+#        if self.ctrajs==None:
+        tmp_ctrjs=[]
+        it=0
+        for tt in tica_traj:
+            out_icl=len(self.cores_idx) # fake microstate, when you are not in a core set
+            ct=[]
+            for frame in tt:
+                sqdists=distance.cdist(self.trj_tot,np.array([frame]),'sqeuclidean')[:,0]
+                idx=np.argmin(sqdists)
+                icl=self.frame_cl[idx]
+                if idx not in self.cores_idx[icl]:
+                    icl=out_icl
+                ct.append(icl)
+            tmp_ctrjs.append(np.array(ct))
+            it+=1
+
+        ctrajs=[]
+        for tmp_ct in tmp_ctrjs:
+            ct=[]
+            old_icl=out_icl
+            for icl in tmp_ct:
+                if icl==out_icl:
+                    icl=old_icl
+                ct.append(icl)
+                old_icl=icl
+            ctrajs.append(np.array(ct))
+            
+        ctrajs_rev=[]
+        for tmp_ct in tmp_ctrjs:
+            ct=[]
+            old_icl=out_icl
+            for icl in tmp_ct[::-1]:
+                if icl==out_icl:
+                    icl=old_icl
+                ct.append(icl)
+                old_icl=icl
+            ctrajs_rev.append(np.array(ct))
+
+        return ctrajs,ctrajs_rev
 
 
     ### cluster centers in the initial coordinates space
