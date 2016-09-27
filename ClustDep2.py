@@ -7,7 +7,7 @@ class cluster_DPA:
    
     #### this should be the constructor
 #    def __init__(self,dmat,dim,trj_tot,stride=1,merge=True):
-    def __init__(self,dim,trj_tot,dmat=None,stride=1):
+    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False):
 
         #### store internal variables
 #        self.merge=merge # set to False if you don't want to merge non-significative clusters THIS DOES NOT WORK
@@ -16,7 +16,7 @@ class cluster_DPA:
         if dmat==None:
             dmat=distance.pdist(trj_tot)
         # !!! ADD A CHECK FOR THE DIMENSIONS OF DMAT AND TRJTOT!!!
-
+            
         self.trj_tot=trj_tot #trajectory on thich I made the clustering (a subset of the total data set, usually)
                              #should be shaped (N.frames)x(N.coords)
         print 'cacca'
@@ -27,6 +27,24 @@ class cluster_DPA:
         self.ND=len(dmat)
         self.Npoints=len(trj_tot)
         self.dim=dim
+
+
+### dump the distance matrix if needed for dimensionality calculation
+        if dump_dmat:
+            print 'writing distance matrix on file','dpa-dmat.dat'
+            k=0
+            stringa=''
+            for i in range(self.Npoints):
+                for j in range(i+1,self.Npoints):
+                    d=dmat[k]
+                    stringa+='%d %d %f\n' % (i+1,j+1,d)
+                    k+=1
+#            fh=open(name+'_dpa-dmat.dat','w')
+            fh=open('dpa-dmat.dat','w')
+            fh.write(stringa)
+            fh.close()
+            del stringa
+
 
         ### perform the clustering
         self.__clustering(dmat)
