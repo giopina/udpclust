@@ -11,10 +11,15 @@ in the working directory
 import UDPClust as dp
 clustering=dp.cluster_DPA(dim,trj_tot)
 
-### input variables: ###
+### Input variables: ###
  dim = dimensionality of the dataset
  trj_tot = trajectory to perform the clustering (a subset of the total data set, usually)
           should be a numpy array shaped (N.frames)x(N.coords)
+
+
+##### TO DO: #####
+1) Add the option to feed directly a distance matrix
+2) Add stride and automatic assignment
 
 ##### Note: #####
 the distance matrix calculation and storage is unpractical for N. points >10^4
