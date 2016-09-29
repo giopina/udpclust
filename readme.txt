@@ -1,20 +1,47 @@
-
-###to import into python
+### To import into python ###
 use
-f2py -c -m DPA_clustering critfile.f90 DPA_modules.f90
-then copy the file
-DPA_clustering.so
-in the directory where you are working
+	f2py -c -m DPA_clustering critfile.f90 DPA_modules.f90
 
-###To call the subroutine:
-DPA_clustering.dp_clustering.dp_advance(dmat,frame_cl,rho,filt,dim)
+then add the directory to PYTHONPATH or copy the files
+     DPA_clustering.so
+     UDPClust.py
+in the working directory
 
-### input variables:
-dmat=np.array with distances, triangular form, like the output of scipy.distance.pdist()
-dim=dimensionality of the data set
+### To call the subroutine: ###
+import UDPClust as dp
+clustering=dp.cluster_DPA(dim,trj_tot)
 
-### input/output variables
+### input variables: ###
+ dim = dimensionality of the dataset
+ trj_tot = trajectory to perform the clustering (a subset of the total data set, usually)
+          should be a numpy array shaped (N.frames)x(N.coords)
+
+##### Note: #####
+the distance matrix calculation and storage is unpractical for N. points >10^4
+if that happen it is recommended to use a subset of the total data set (trj_tot)
+to perform the clustering and subsequently use the method assign(trajs) to assign
+all the dataset to the clusters
+
+
+### OUTPUT VARIABLES ###
 Here the results of clustering are stored
-frame_cl=np.zeros(Npoints,dtype=np.int32) # index of the cluster for reach frame
-rho=np.zeros(self.Npoints) # density for each frame
-filt=np.zeros(self.Npoints,dtype=np.int32) # 1 if the density is statistically unrealiable, 0 if it's fine
+clustering.frame_cl   # index of the cluster for reach frame
+clustering.cl_idx     # indexes of frames in each cluster
+clustering.n_clusters # number of clusters identified
+clustering.rho        # density for each frame
+Other internal variables are
+clustering.filt       # 1 if the computed density is not statistically realiable, 0 if was fine. Points with filt=1 were given the density of the closer filt=0 point
+clustering.cores_idx  # indexes of frames in each cluster's core (i.e. points with high density)
+
+
+### Other functions ###
+clustering.assign(trajs):
+	# Assigns the frames from a list of trajectories to the clusters identified before
+clustering.get_centers():
+	# Computes the average position of each cluster
+
+### AUTHORS ###
+This class was written by Giovanni Pinamonti, SISSA, Trieste, 2016
+The fortran modules are based on a program written by Alex Rodriguez
+Please cite 
+d'Errico et al., PNAS, 2016 (soon to be published)

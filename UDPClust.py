@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 from scipy.spatial import distance
 import DPA_clustering
@@ -32,6 +33,8 @@ class cluster_DPA:
 ### dump the distance matrix if needed for dimensionality calculation
         if dump_dmat:
             print 'writing distance matrix on file','dpa-dmat.dat'
+            maxmem=1e9 #max memory to use for the string, in bytes
+            fh=open('dpa-dmat.dat','w')
             k=0
             stringa=''
             for i in range(self.Npoints):
@@ -39,11 +42,12 @@ class cluster_DPA:
                     d=dmat[k]
                     stringa+='%d %d %f\n' % (i+1,j+1,d)
                     k+=1
-#            fh=open(name+'_dpa-dmat.dat','w')
-            fh=open('dpa-dmat.dat','w')
-            fh.write(stringa)
+                    if len(stringa)*sys.getsizeof('a')>maxmem:
+                        fh.write(stringa)
+                        stringa=''
+
             fh.close()
-            del stringa
+
 
 
         ### perform the clustering
