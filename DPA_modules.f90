@@ -475,7 +475,7 @@ contains
          if (.not.filter(i)) nonfilter=nonfilter+1
       enddo
       nassign=Nclus
-      write(22,*) id_err,Nclus !###
+!      write(22,*) id_err,Nclus !###
       if (Nclus.gt.1) then
 
          ! copy of rho (not efficient, but clarify the code)
