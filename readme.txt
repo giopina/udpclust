@@ -1,4 +1,4 @@
-### To import into python ###
+**To import into python**
 use
 	f2py -c -m DPA_clustering critfile.f90 DPA_modules.f90
 
@@ -7,28 +7,28 @@ then add the directory to PYTHONPATH or copy the files
      UDPClust.py
 in the working directory
 
-### To call the subroutine: ###
+**To call the subroutine:**
 import UDPClust as dp
 clustering=dp.cluster_DPA(dim,trj_tot)
 
-### Input variables: ###
+**Input variables:**
  dim = dimensionality of the dataset
  trj_tot = trajectory to perform the clustering (a subset of the total data set, usually)
           should be a numpy array shaped (N.frames)x(N.coords)
 
 
-##### TO DO: #####
+**TO DO:**
 1) Add the option to feed directly a distance matrix
 2) Add stride and automatic assignment
 
-##### Note: #####
+*Note:*
 the distance matrix calculation and storage is unpractical for N. points >10^4
 if that happen it is recommended to use a subset of the total data set (trj_tot)
 to perform the clustering and subsequently use the method assign(trajs) to assign
 all the dataset to the clusters
 
 
-### OUTPUT VARIABLES ###
+**OUTPUT VARIABLES**
 Here the results of clustering are stored
 clustering.frame_cl   # index of the cluster for reach frame
 clustering.cl_idx     # indexes of frames in each cluster
@@ -39,13 +39,13 @@ clustering.filt       # 1 if the computed density is not statistically realiable
 clustering.cores_idx  # indexes of frames in each cluster's core (i.e. points with high density)
 
 
-### Other functions ###
+**Other functions**
 clustering.assign(trajs):
-	# Assigns the frames from a list of trajectories to the clusters identified before
+	Assigns the frames from a list of trajectories to the clusters identified before
 clustering.get_centers():
-	# Computes the average position of each cluster
+	Computes the average position of each cluster
 
-### AUTHORS ###
+**AUTHORS**
 This class was written by Giovanni Pinamonti, SISSA, Trieste, 2016
 The fortran modules are based on a program written by Alex Rodriguez
 Please cite 
