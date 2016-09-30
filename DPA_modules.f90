@@ -114,7 +114,7 @@ contains
       real*8 :: prefactor
 !      real*8 :: rhg,rh1,rh2,rh3,rh4,dL
       real*8 :: rhg,dl
-      real*8,dimension(8) :: rh
+      real*8,dimension(4) :: rh
 !      real*8 :: rjk1,rjk2,rjk3,rjk4,rjaver,rjfit
       real*8 :: rjaver,rjfit
       real*8,dimension(4) :: rjk
@@ -232,10 +232,11 @@ contains
                xmean=(SUM(x)-x(i1))/dfloat(3)
                ymean=(SUM(rh)-rh(i1))/dfloat(3)
                b=SUM((x-xmean)**2)-(x(i1)-xmean)**2
-               a=SUM((x-xmean)*(rh-ymean))-(x(i1)-xmean)*(rh[i1]-ymean)
+               a=SUM((x-xmean)*(rh-ymean))-(x(i1)-xmean)*(rh(i1)-ymean)
                a=a/b
                !###
                rjk(i1)=ymean-a*xmean
+            enddo
             rjaver=0.25*SUM(rjk)
             Rho(i)=4.*rjfit-3.*rjaver
 !            Rho_err(i)=0.75*((rjk1-rjaver)**2+(rjk2-rjaver)**2+(rjk3-rjaver)**2+(rjk4-rjaver)**2)
