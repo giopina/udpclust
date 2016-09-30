@@ -6,14 +6,15 @@
 ! ### I edited ths to make it modular and python compatible
 ! ### starting on April 5th 2016
 ! ### I'm removing subroutines that I don't need (graph, noise, etc)
-! ### on April 6th 2016
-! ### by
-! ### Giovanni Pinamonti
+! ### on April 6th 2016.
+! ###
+! ### 
+! ### by Giovanni Pinamonti
 ! ### PhD student @ SISSA, Trieste
 ! ### Sector of Molecular and Statistical Biophysics
 
 ! 
-!  Program that efectuates Cluster analysis in fortran
+!  Program that effectuates Cluster analysis in fortran
 !  Fully automated clustering by accurate non-parametric density estimation
 !  (D'Errico et al, publication pendent, 2015) 
 ! 
@@ -103,6 +104,7 @@ contains
       integer :: id_err
       !! Local variables
       integer :: i,j,k,m,n
+      integer :: i1,i2 ! ### my integer for loops
       integer :: kadd
       integer :: niter,nfilter
       real*8,allocatable :: Vols(:)
@@ -110,19 +112,18 @@ contains
       !real*8 :: critV(critdim)
       real*8, parameter :: pi=3.14159265359
       real*8 :: prefactor
-      real*8 :: rhg,rh1,rh2,rh3,rh4,dL
-      real*8 :: rjk1,rjk2,rjk3,rjk4,rjaver,rjfit
+!      real*8 :: rhg,rh1,rh2,rh3,rh4,dL
+      real*8 :: rhg,dl
+      real*8,dimension(8) :: rh
+!      real*8 :: rjk1,rjk2,rjk3,rjk4,rjaver,rjfit
+      real*8 :: rjaver,rjfit
+      real*8,dimension(4) :: rjk
       logical :: viol
       real*8 :: xmean,ymean,a,b,c                                     !  FIT
-      real*8 :: x1,x2,x3,x4                                           ! STUFF LINEAR NOT EQUALLY POPULATED PARTITIONS
+!      real*8 :: x1,x2,x3,x4                                           ! STUFF LINEAR NOT EQUALLY POPULATED PARTITIONS
+      real*8, dimension(4) :: x
       integer :: partit(4)
       id_err=0
-
-!      open (21,file="crit_0.999_n.dat",status='old',err=211)
-!      do i=1,critdim
-!         read (21,*) j,critV(i)
-!      enddo
-!      close (21)
 
       limit=min(maxknn,nint(0.5*Nele))
       if (mod(limit,4).ne.0) then
@@ -130,7 +131,6 @@ contains
       endif
 
       ! get prefactor for Volume calculation
-
       if (mod(dimint,2).eq.0) then
          k=dimint/2
          m=1
@@ -152,15 +152,11 @@ contains
       endif
 
       allocate (Nstar(Nele))
-!      allocate (Rho(Nele))
       allocate (Rho_err(Nele))
       allocate (Nlist(Nele,limit))
-
       allocate (Vols(Nele))
       allocate (iVols(Nele))
 
-
- !     open (22,file="densities.dat")
       do i=1,Nele
          Vols(:)=9.9E9
          do j=1,Nele
@@ -205,136 +201,51 @@ contains
             if (k.eq.0) k=4
             partit(k)=partit(k)+1
          enddo
-         x1=dfloat(partit(1))/dfloat(Nstar(i))*0.5
-         x2=dfloat(partit(1))/dfloat(Nstar(i))+dfloat(partit(2))/dfloat(Nstar(i))*0.5
-         x3=dfloat(partit(1)+partit(2))/dfloat(Nstar(i))+dfloat(partit(3))/dfloat(Nstar(i))*0.5
-         x4=dfloat(partit(1)+partit(2)+partit(3))/dfloat(Nstar(i))+dfloat(partit(4))/dfloat(Nstar(i))*0.5
-         x1=x1*4.
-         x2=x2*4.
-         x3=x3*4.
-         x4=x4*4.
+         x(1)=dfloat(partit(1))/dfloat(Nstar(i))*0.5
+         x(2)=dfloat(partit(1))/dfloat(Nstar(i))+dfloat(partit(2))/dfloat(Nstar(i))*0.5
+         x(3)=dfloat(partit(1)+partit(2))/dfloat(Nstar(i))+dfloat(partit(3))/dfloat(Nstar(i))*0.5
+         x(4)=dfloat(partit(1)+partit(2)+partit(3))/dfloat(Nstar(i))+dfloat(partit(4))/dfloat(Nstar(i))*0.5
+         x=x*4.
          rhg=dfloat(Nstar(i))/Vols(Nstar(i)) ! Rho without fit
          if (Nstar(i).le.0) then
             Rho(i)=rhg
             Rho_err(i)=Rho(i)/dsqrt(dfloat(Nstar(i)))
          else
             ! get inv rho of the four quarters
-            j=Nstar(i)/4
-            a=dfloat(j)
-            rh1=Vols(partit(1))/dfloat(partit(1))
-            rh2=(Vols(partit(1)+partit(2))-Vols(partit(1)))/dfloat(partit(2))
-            rh3=(Vols(partit(1)+partit(2)+partit(3))-Vols(partit(1)+partit(2)))/dfloat(partit(3))
-            rh4=(Vols(partit(1)+partit(2)+partit(3)+partit(4))-Vols(partit(1)+partit(2)+partit(3)))/dfloat(partit(4))
+!            j=Nstar(i)/4
+!            a=dfloat(j)
+            rh(1)=Vols(partit(1))/dfloat(partit(1))
+            rh(2)=(Vols(partit(1)+partit(2))-Vols(partit(1)))/dfloat(partit(2))
+            rh(3)=(Vols(partit(1)+partit(2)+partit(3))-Vols(partit(1)+partit(2)))/dfloat(partit(3))
+            rh(4)=(Vols(partit(1)+partit(2)+partit(3)+partit(4))-Vols(partit(1)+partit(2)+partit(3)))/dfloat(partit(4))
             ! make the quadratic fit rhj=1/rho+C*j^2
-            xmean=0.25*(x1+x2+x3+x4)
-            ymean=0.25*(rh1+rh2+rh3+rh4)
-            b=0.
-            c=x1-xmean
-            b=b+c*c
-            c=x2-xmean
-            b=b+c*c
-            c=x3-xmean
-            b=b+c*c
-            c=x4-xmean
-            b=b+c*c
-            a=0.
-            c=x1-xmean
-            a=a+c*(rh1-ymean)
-            c=x2-xmean
-            a=a+c*(rh2-ymean)
-            c=x3-xmean
-            a=a+c*(rh3-ymean)
-            c=x4-xmean
-            a=a+c*(rh4-ymean)
+            xmean=0.25*sum(x)
+            ymean=0.25*sum(rh)
+            b=SUM((x-xmean)**2)
+            a=SUM((x-xmean)*(rh-ymean))
             a=a/b
             rjfit=ymean-a*xmean
             ! Perform jacknife resampling for estimate the error (it includes statistical
             ! error and curvature error) 
             ! 4 out
-            xmean=(x1+x2+x3)/dfloat(3)
-            ymean=(rh1+rh2+rh3)/dfloat(3)
-            b=0.
-            c=x1-xmean
-            b=b+c*c
-            c=x2-xmean
-            b=b+c*c
-            c=x3-xmean
-            b=b+c*c
-            a=0.
-            c=x1-xmean
-            a=a+c*(rh1-ymean)
-            c=x2-xmean
-            a=a+c*(rh2-ymean)
-            c=x3-xmean
-            a=a+c*(rh3-ymean)
-            a=a/b
-            rjk4=ymean-a*xmean
-            ! 3 out
-            xmean=(x1+x2+x4)/dfloat(3)
-            ymean=(rh1+rh2+rh4)/dfloat(3)
-            b=0.
-            c=x1-xmean
-            b=b+c*c
-            c=x2-xmean
-            b=b+c*c
-            c=x4-xmean
-            b=b+c*c
-            a=0.
-            c=x1-xmean
-            a=a+c*(rh1-ymean)
-            c=x2-xmean
-            a=a+c*(rh2-ymean)
-            c=x4-xmean
-            a=a+c*(rh4-ymean)
-            a=a/b
-            rjk3=ymean-a*xmean
-            ! 2 out
-            xmean=(x1+x4+x3)/dfloat(3)
-            ymean=(rh1+rh4+rh3)/dfloat(3)
-            b=0.
-            c=x1-xmean
-            b=b+c*c
-            c=x4-xmean
-            b=b+c*c
-            c=x3-xmean
-            b=b+c*c
-            a=0.
-            c=x1-xmean
-            a=a+c*(rh1-ymean)
-            c=x4-xmean
-            a=a+c*(rh4-ymean)
-            c=x3-xmean
-            a=a+c*(rh3-ymean)
-            a=a/b
-            rjk2=ymean-a*xmean
-            ! 1 out
-            xmean=(x4+x2+x3)/dfloat(3)
-            ymean=(rh4+rh2+rh3)/dfloat(3)
-            b=0.
-            c=x4-xmean
-            b=b+c*c
-            c=x2-xmean
-            b=b+c*c
-            c=x3-xmean
-            b=b+c*c
-            a=0.
-            c=x4-xmean
-            a=a+c*(rh4-ymean)
-            c=x2-xmean
-            a=a+c*(rh2-ymean)
-            c=x3-xmean
-            a=a+c*(rh3-ymean)
-            a=a/b
-            rjk1=ymean-a*xmean
-            rjaver=0.25*(rjk1+rjk2+rjk3+rjk4)
+            do i1=1,4
+               xmean=(SUM(x)-x(i1))/dfloat(3)
+               ymean=(SUM(rh)-rh(i1))/dfloat(3)
+               b=SUM((x-xmean)**2)-(x(i1)-xmean)**2
+               a=SUM((x-xmean)*(rh-ymean))-(x(i1)-xmean)*(rh[i1]-ymean)
+               a=a/b
+               !###
+               rjk(i1)=ymean-a*xmean
+            rjaver=0.25*SUM(rjk)
             Rho(i)=4.*rjfit-3.*rjaver
-            Rho_err(i)=0.75*((rjk1-rjaver)**2+(rjk2-rjaver)**2+(rjk3-rjaver)**2+(rjk4-rjaver)**2)
+!            Rho_err(i)=0.75*((rjk1-rjaver)**2+(rjk2-rjaver)**2+(rjk3-rjaver)**2+(rjk4-rjaver)**2)
+            Rho_err(i)=0.75*SUM((rjk-rjaver)**2)
             Rho(i)=1./Rho(i)
             Rho_err(i)=max(Rho(i)/sqrt(float(Nstar(i))),Rho(i)*Rho(i)*sqrt(Rho_err(i)))
          endif
          ! density output: N, n*,density,Error in density,density from knn formula
 !         write (22,'(i6,1x,i3,1x,3(f28.9,1x))') i,Nstar(i),Rho(i),Rho_err(i),rhg 
-         ! ### ### COS'E' rhg????????? ### ###
+         ! ### ### COS'E' rhg????????? ### ### tipo il raggio...
       enddo
       deallocate (Vols,iVols)
 !      close (22)
