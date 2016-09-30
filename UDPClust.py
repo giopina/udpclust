@@ -78,7 +78,7 @@ class cluster_UDP:
         self.id_err=np.array(0,dtype=np.int32)
 
         #fortran subroutine
-        UDP_clustering.dp_clustering.dp_advance\
+        UDP_modules.dp_clustering.dp_advance\
             (dmat,self.frame_cl,self.rho,self.filt,self.dim,self.id_err,np.array(self.merge,dtype=np.int32))
 
         self.frame_cl-=1 #back to python enumeration in arrays
