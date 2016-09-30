@@ -1,16 +1,16 @@
 ### to import into python ###
 use
-	f2py -c -m DPA_clustering critfile.f90 DPA_modules.f90
+	f2py -c -m UDP_modules critfile.f90 UDP_modules.f90
 
 then add the directory to PYTHONPATH or copy the files
-     DPA_clustering.so
+     UDP_modules.so
      UDPClust.py
 in the working directory
 
 
 ### To call the subroutine: ###
 import UDPClust as dp
-clustering=dp.cluster_DPA(dim,trj_tot)
+clustering=dp.cluster_UDP(dim,trj_tot)
 
 
 ### Input variables: ###

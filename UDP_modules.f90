@@ -1,6 +1,6 @@
 
 ! ##########################################################
-! ###             Modules for DPA clustering             ###
+! ###             Modules for UDP clustering             ###
 ! ##########################################################
 
 ! ### I edited ths to make it modular and python compatible

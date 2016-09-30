@@ -1,9 +1,9 @@
 import sys
 import numpy as np
 from scipy.spatial import distance
-import DPA_clustering
+import UDP_modules
 
-class cluster_DPA:
+class cluster_UDP:
     
    
     #### this should be the constructor
@@ -32,9 +32,9 @@ class cluster_DPA:
 
 ### dump the distance matrix if needed for dimensionality calculation
         if dump_dmat:
-            print 'writing distance matrix on file','dpa-dmat.dat'
+            print 'writing distance matrix on file','udp-dmat.dat'
             maxmem=1e9 #max memory to use for the string, in bytes
-            fh=open('dpa-dmat.dat','w')
+            fh=open('udp-dmat.dat','w')
             k=0
             stringa=''
             for i in range(self.Npoints):
@@ -78,7 +78,7 @@ class cluster_DPA:
         self.id_err=np.array(0,dtype=np.int32)
 
         #fortran subroutine
-        DPA_clustering.dp_clustering.dp_advance\
+        UDP_clustering.dp_clustering.dp_advance\
             (dmat,self.frame_cl,self.rho,self.filt,self.dim,self.id_err,np.array(self.merge,dtype=np.int32))
 
         self.frame_cl-=1 #back to python enumeration in arrays
@@ -209,9 +209,10 @@ class cluster_DPA:
 
 
     def dump_dmat(self,name):
+        ### I don't know if this works
         print 'computing distance matrix'
         dmat=distance.pdist(self.trj_tot)
-        print 'writing distance matrix on file',name+'_dpa-dmat.dat'
+        print 'writing distance matrix on file',name+'_udp-dmat.dat'
         k=0
         stringa=''
         for i in range(self.Npoints):
@@ -219,7 +220,7 @@ class cluster_DPA:
                 d=dmat[k]
                 stringa+='%d %d %f\n' % (i+1,j+1,d)
                 k+=1
-        fh=open(name+'_dpa-dmat.dat','w')
+        fh=open(name+'_udp-dmat.dat','w')
         fh.write(stringa)
         fh.close()
         del stringa
