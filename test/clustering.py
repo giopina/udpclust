@@ -10,5 +10,6 @@ for line in open(fname,'r'):
 traj=np.array(traj)
 print 'shape of input array =',traj.shape
 cl=dp.cluster_UDP(dim,traj)
-fout=open(fname+'.dpc','wb')
+print 'Clustering fatto'
+fout=open(sys.argv[3],'wb')
 pickle.dump(cl,fout,-1)
