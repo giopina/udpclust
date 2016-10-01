@@ -164,7 +164,7 @@ contains
                Vols(j)=prefactor*(gDist(i,j))**dimint
             endif
          enddo
-         call HPSORT(Nele,Vols,iVols)
+         call HPSORT(Nele,Vols,iVols) !sort Vols, iVols is the permutation
          do j=1,limit
             Nlist(i,j)=iVols(j)
          enddo
@@ -183,8 +183,12 @@ contains
             k=k+4
             if (k.gt.limit) viol=.true.
          enddo
-         Nstar(i)=k-4
-         if (Nstar(i).lt.minknn) Nstar(i)=minknn
+         Nstar(i)=k-4 ! ### ha senso?
+         if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
+
+         ! ### kadd funge da boolean. Qui sto aggiungendo vicini che sono 
+         ! ### a una distanza computazionalmente indistinguibile al mio calcolo
+         ! ### (ma ha senso sta roba?)
          kadd=1
          if (Nstar(i).eq.limit) kadd=0
          do while (kadd.eq.1)
@@ -195,12 +199,18 @@ contains
                kadd=0
             endif
          enddo
-         partit(:)=0
+         partit(:)=0 ! ### che e'?!
          do j=1,Nstar(i)
             k=mod(j,4)
-            if (k.eq.0) k=4
+            if (k.eq.0) k=4 ! ### !
             partit(k)=partit(k)+1
          enddo
+         ! ### direi che il ciclo di qui sopra si puo' fare in due righe ovvero
+         ! ### partit(:)=Nstar(i)-MOD(Nstar(i),4)
+         ! ### partit(:MOD(Nstar(i),4))=partit(:MOD(Nstar(i),4))+1
+         !
+         ! ### ho capito il senso. Dovrebbe essere per ovviare al fatto che Nstar non e' per forza un multiplo di 4.
+         ! ### non sono sicuro se questo sia il modo migliore per farlo...
          x(1)=dfloat(partit(1))/dfloat(Nstar(i))*0.5
          x(2)=dfloat(partit(1))/dfloat(Nstar(i))+dfloat(partit(2))/dfloat(Nstar(i))*0.5
          x(3)=dfloat(partit(1)+partit(2))/dfloat(Nstar(i))+dfloat(partit(3))/dfloat(Nstar(i))*0.5
