@@ -1,0 +1,3 @@
+Running the script...
+Done.
+out-1d_cl_idx.dat
