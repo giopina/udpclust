@@ -20,7 +20,7 @@ class cluster_UDP:
             
         self.trj_tot=trj_tot #trajectory on thich I made the clustering (a subset of the total data set, usually)
                              #should be shaped (N.frames)x(N.coords)
-        print 'cacca'
+#        print 'cacca'
         if stride!=1:
             print 'stride different from 1 not supported yet'
             return
@@ -109,8 +109,9 @@ class cluster_UDP:
         
     ### CORE SETS IDENTIFICATION
     def __find_core_sets(self,R_CORE=np.exp(-1)):
-        print " Questo e' il cutoff sul rapporto della densita' core con il picco:",R_CORE
-        self.cores_idx=[ [] for i in range(len(self.cl_idx))]
+#        print " Questo e' il cutoff sul rapporto della densita' core con il picco:",R_CORE
+        print " Idenitfying core sets using a cutoff of %s with respect to the peak density" % R_CORE
+        self.cores_idx=[  [] for i in range(len(self.cl_idx))]
         k_cl=0
         for cluster in self.cl_idx:
             rhomax=np.max(self.rho[cluster])
@@ -231,7 +232,7 @@ class cluster_UDP:
         icl=0
         for clust in self.cl_idx:
             icl+=1
-            print 'Cluster %d:'%icl
-            for idx in cluster:
-                print '  %d'%idx
+            fh.write('Cluster %d:\n'%icl)
+            for idx in clust:
+                fh.write('  %d\n'%idx)
         fh.close()
