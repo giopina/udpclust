@@ -224,3 +224,14 @@ class cluster_UDP:
         fh.write(stringa)
         fh.close()
         del stringa
+    
+
+    def dump_cl(self,name):
+        fh=open(name+'_cl_idx.dat','w')
+        icl=0
+        for clust in self.cl_idx:
+            icl+=1
+            print 'Cluster %d:'%icl
+            for idx in cluster:
+                print '  %d'%idx
+        fh.close()
