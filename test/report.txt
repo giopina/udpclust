@@ -1,3 +1,6 @@
 Running the script...
 Done.
-out-1d_cl_idx.dat
+out-4_cl_idx.dat
+out-5_cl_idx.dat
+out-d_cl_idx.dat
+out-t_cl_idx.dat

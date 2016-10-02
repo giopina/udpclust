@@ -8,19 +8,20 @@ class cluster_UDP:
    
     #### this should be the constructor
 #    def __init__(self,dmat,dim,trj_tot,stride=1,merge=True):
-    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False):
-
+    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True):
+        
         #### store internal variables
 #        self.merge=merge # set to False if you don't want to merge non-significative clusters THIS DOES NOT WORK
         self.merge=True # set to False if you don't want to merge non-significative clusters
+        self.coring=coring
         ### compute the distance matrix if not provided ( in this way it should be deleted at the end of the function. suggested to avoid large memory consumption)
         if dmat==None:
             dmat=distance.pdist(trj_tot)
         # !!! ADD A CHECK FOR THE DIMENSIONS OF DMAT AND TRJTOT!!!
-            
+        else:
+            assert dmat.shape[0]==trj_tot.shape[0],"trj_tot and distance matrix shapes do not match"
         self.trj_tot=trj_tot #trajectory on thich I made the clustering (a subset of the total data set, usually)
                              #should be shaped (N.frames)x(N.coords)
-#        print 'cacca'
         if stride!=1:
             print 'stride different from 1 not supported yet'
             return
@@ -28,7 +29,6 @@ class cluster_UDP:
         self.ND=len(dmat)
         self.Npoints=len(trj_tot)
         self.dim=dim
-
 
 ### dump the distance matrix if needed for dimensionality calculation
         if dump_dmat:
@@ -45,17 +45,13 @@ class cluster_UDP:
                     if len(stringa)*sys.getsizeof('a')>maxmem:
                         fh.write(stringa)
                         stringa=''
-
             fh.close()
-
 
 
         ### perform the clustering
         self.__clustering(dmat)
         ### check for errors
-        #print self.id_err
         assert not self.__errorcheck(), 'Problem in clustering'
-#        if self.__errorcheck(): return
         ### assign densities of nearest-neighbours to the filtered points
         f1=np.where(self.filt==1)[0]
         f0=np.where(self.filt==0)[0]
@@ -63,8 +59,9 @@ class cluster_UDP:
             dists=distance.cdist(trj_tot[f0],np.array([trj_tot[i]]))[:,0]
             imin=np.argmin(dists)
             self.rho[i]=self.rho[f0[imin]]
-        ### find core sets
-        self.__find_core_sets()
+        if coring:
+            ### find core sets
+            self.__find_core_sets()
 
     def __clustering(self,dmat):
         # 1) initialize quantities that will be computed by the fortran subroutine
@@ -91,14 +88,14 @@ class cluster_UDP:
 
     def __errorcheck(self):
         if self.id_err!=0:
-            if self.id_err==1 : print "Select case error for distance type"
-            elif self.id_err==2 : print "Error opening distance file"
-            elif self.id_err==3 : print "Error opening coordinates file"
-            elif self.id_err==4 : print "Error on distance file format"
-            elif self.id_err==5 : print "Error on coordinates file format"
-            elif self.id_err==6 : print "Peridic Bounday Conditions option unrecognized"
-            elif self.id_err==7 : print "Dimension calculation option unrecognized"
-            elif self.id_err==8 : print "Error opening critical values file"
+            if self.id_err==1 : print "Select case error for distance type" #obsolete?
+            elif self.id_err==2 : print "Error opening distance file"#obsolete?
+            elif self.id_err==3 : print "Error opening coordinates file"#obsolete?
+            elif self.id_err==4 : print "Error on distance file format" #obsolete?
+            elif self.id_err==5 : print "Error on coordinates file format" #obsolete?
+            elif self.id_err==6 : print "Peridic Boundary Conditions option unrecognized" # obsolete?
+            elif self.id_err==7 : print "Dimension calculation option unrecognized" # obsolete?
+            elif self.id_err==8 : print "Error opening critical values file" #obsolete?
             elif self.id_err==9 : print "Just one cluster"
             elif self.id_err==10: print "Just one cluster after merging"
             elif self.id_err==11: print "Error in assignation"
@@ -122,17 +119,15 @@ class cluster_UDP:
             k_cl+=1
 
     ### CTRAJS 
+    ### Here it assigns frames from a list of trajectories to the clusters.
+    ### TODO: if coring =True (default) it will assign using the "coring" approach (Buchete and Hummer, 2008)
     def assign(self,tica_traj):
         # this part takes some time
-        #    import time
-        #    start_time = time.time()
 #        if self.ctrajs==None:
         ctrajs=[]
         it=0
         for tt in tica_traj:
             old_icl=len(self.cores_idx) # fake microstate, where u start all the trj and never enter again
-            # maybe its better not to use this. The hmm object seems to be angry with it.
-#            old_icl=-1
             ct=[]
             for frame in tt:
                 #                dists=distance.cdist(self.trj_tot,np.array([frame]))[:,0]
@@ -143,7 +138,6 @@ class cluster_UDP:
                     icl=old_icl
 
                 if old_icl>=0:
-                #if old_icl>=-1:
                     ct.append(icl)
                 old_icl=icl
             ctrajs.append(np.array(ct))
