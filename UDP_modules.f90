@@ -199,15 +199,15 @@ contains
                kadd=0
             endif
          enddo
-         partit(:)=0 ! ### che e'?!
-         do j=1,Nstar(i)
-            k=mod(j,4)
-            if (k.eq.0) k=4 ! ### !
-            partit(k)=partit(k)+1
-         enddo
+!         partit(:)=0 ! ### che e'?!
+!         do j=1,Nstar(i)
+!            k=mod(j,4)
+!            if (k.eq.0) k=4 ! ### !
+!            partit(k)=partit(k)+1
+!         enddo
          ! ### direi che il ciclo di qui sopra si puo' fare in due righe ovvero
-         ! ### partit(:)=Nstar(i)-MOD(Nstar(i),4)
-         ! ### partit(:MOD(Nstar(i),4))=partit(:MOD(Nstar(i),4))+1
+         partit(:)=Nstar(i)/4 !-MOD(Nstar(i),4)
+         partit(:MOD(Nstar(i),4))=partit(:MOD(Nstar(i),4))+1
          !
          ! ### ho capito il senso. Dovrebbe essere per ovviare al fatto che Nstar non e' per forza un multiplo di 4.
          ! ### non sono sicuro se questo sia il modo migliore per farlo...
