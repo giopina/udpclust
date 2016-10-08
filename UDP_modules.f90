@@ -66,20 +66,17 @@ contains
     real*8,allocatable :: Bord(:,:)     ! Border Densities
     real*8,allocatable :: Bord_err(:,:) ! Border Densities Error
     integer,allocatable :: eb(:,:)    ! Border elements
-    integer,allocatable :: Pop(:)     ! Cluster Population
     real*8,allocatable :: cent(:)       ! Center Density
     real*8,allocatable :: cent_err(:)   ! Center Error
     ! Underscore m implies data after automatic merging
     integer :: Nclus_m                  ! Number of Cluster merged
     real*8,allocatable :: Bord_m(:,:)     ! Border Densities
     real*8,allocatable :: Bord_err_m(:,:) ! Border Densities Error
-    integer,allocatable :: Pop_m(:)     ! Cluster Population
     real*8,allocatable :: cent_m(:)       ! Center Density
     real*8,allocatable :: cent_err_m(:)   ! Center Error
     integer,allocatable :: Centers_m(:) ! Centers of the peaks
     integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
     ! 
-    integer:: iglob,n,ai,bi
     !####################################################
 
     id_err=0
@@ -407,10 +404,7 @@ contains
          enddo
 
 
-         ! Assign filtered to the same Cluster as its nearest unfiltered neighbour (and
-         ! count cluster population)
-         allocate (Pop(Nclus))
-         Pop(:)=0
+         ! Assign filtered to the same Cluster as its nearest unfiltered neighbour
          do i=1,Nele
             if (Cluster(i).eq.0) then
                dmin=9.9d99
@@ -425,7 +419,6 @@ contains
                enddo
                Cluster(i)=Cluster(jg)
             endif
-            Pop(Cluster(i))=Pop(Cluster(i))+1
          enddo
          ! find border densities
 
@@ -638,14 +631,11 @@ contains
       ! get survival characteristics
 
       if (Nclus_m.gt.1) then
-         allocate (Pop_m(Nclus_m))
          allocate (Bord_m(Nclus_m,Nclus_m),Bord_err_m(Nclus_m,Nclus_m))
          allocate (cent_m(Nclus_m),cent_err_m(Nclus_m))
          allocate (Centers_m(Nclus_m))
-         Pop_m(:)=0
          do i=1,Nele
             Cluster_m(i)=O2M(Cluster_m(i))
-            Pop_m(Cluster_m(i))=Pop_m(Cluster_m(i))+1
          enddo
          do i=1,Nclus_m
             do j=i+1,Nclus_m
