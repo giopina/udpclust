@@ -1,5 +1,5 @@
 ### ---------------------------------------------
-### Example program that uses the UDPClust class 
+### Example script that uses the UDPClust class 
 ### to perform unsupervised density peak clustering
 ### ---------------------------------------------
 ### usage: python clustering.py input_file_name dimensionality output_file_name
