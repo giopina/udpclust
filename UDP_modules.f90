@@ -277,6 +277,7 @@ contains
          do i=1,Nele
             ! compute average density in the neighborhood and standard dev.
             if (.not.filter(i)) then
+               ! ### come puo' essere Rho minore di zero...!?
                if ((Rho(i).lt.0).or.(Rho_err(i).gt.Rho(i))) then
                   filter(i)=.true.
                   viol=.true.
@@ -284,9 +285,8 @@ contains
                   a=0.
                   b=0.
                   n=0
+                  ! ### questo prob si puo' fare senza loop ma bisogna pensarci (c'e' da considerare i filter...)
                   do j=1,Nstar(i) 
-!                     if (i.eq.5060) write (6,'(i5,i3,i5,f20.5,l,f20.5)') i,j,&
-!                          Nlist(i,j),Rho(Nlist(i,j)),filter(Nlist(i,j)),gDist(i,Nlist(i,j))
                      if (.not.filter(Nlist(i,j))) then
                         a=a+Rho(Nlist(i,j))
                         b=b+Rho(Nlist(i,j))**2
