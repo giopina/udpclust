@@ -3,7 +3,7 @@
 {
 
 echo "Running the script..."
-./test.sh >log 2>err
+time ./test.sh >log 2>err
 
 echo "Done."
 
