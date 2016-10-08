@@ -57,7 +57,6 @@ contains
     real*8,allocatable :: dc(:)         ! Distance for density calculation
     logical,intent(inout) :: filter(Nele)  ! Point with anomalous density
     logical,allocatable :: backgr(:)  ! Point assigned to background noise
-    logical,allocatable :: scarti(:)  ! Points filtered or assigned to background noise
     integer,allocatable :: Nlist(:,:) ! Neighbour list within dc
     integer,allocatable :: Nstar(:)   ! Number of neighbours taken for computing density 
    integer,allocatable :: Centers(:) ! Centers of the peaks
@@ -256,10 +255,8 @@ contains
       deallocate (Vols,iVols)
       !      allocate (filter(Nele))
       allocate (backgr(Nele))
-      allocate (scarti(Nele))
 
       backgr(:)=.false.
-      scarti(:)=.false.
       ! Filter with neighbours density (Iterative version)
       filter(:)=.false.
       viol=.true.
@@ -306,7 +303,6 @@ contains
             endif
          enddo
       enddo
-      scarti(:)=filter(:)
       !Get dc
       allocate (dc(Nele))
       do i=1,Nele
@@ -353,11 +349,11 @@ contains
          endif
       enddo
       do i=1,Nele
-         if (.not.scarti(i)) then
+         if (.not.filter(i)) then
             idmax=.true.
             j=1
             do while (idmax .and. (j.le.Nstar(i)))
-               if ((Rho_prob(i).le.Rho_prob(Nlist(i,j))).and.(.not.scarti(Nlist(i,j))))  idmax=.false.
+               if ((Rho_prob(i).le.Rho_prob(Nlist(i,j))).and.(.not.filter(Nlist(i,j))))  idmax=.false.
                j=j+1
             enddo
             if (idmax) then
@@ -438,12 +434,13 @@ contains
          Bord_err(:,:)=0.
          eb(:,:)=0
          candidates_B(:)=0
-
-         do i=1,Nele
-            if (.not.scarti(i)) then
+         
+         ! ### questo si puo' fare in maniera migliore? Magari senza dc che viene usato solo qua e non sembra utile.
+         do i=1,Nele ! si puo' fare il loop solo su i filter?
+            if (.not.filter(i)) then
                dmin=9.9d99
                do j=1,Nele
-                  if (.not.scarti(j)) then
+                  if (.not.filter(j)) then
                      if (cluster(j).ne.cluster(i)) then
                         d=gDist(i,j)
                         if (d.lt.dmin) then
@@ -477,7 +474,8 @@ contains
                endif
                !   endif
             endif
-         enddo
+         enddo ! i=1,Nele
+         ! ### altro cluster
          do i=1,Nclus-1
             do j=i+1,Nclus
                if (eb(i,j).ne.0) then
