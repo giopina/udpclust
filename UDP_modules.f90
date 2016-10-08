@@ -1,4 +1,3 @@
-
 ! ##########################################################
 ! ###             Modules for UDP clustering             ###
 ! ##########################################################
@@ -44,11 +43,14 @@ contains
     integer,intent(in) :: ND                     ! Number of distances
 
     integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
+
+    !### only density calculation is using these
     integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
     integer,parameter :: minknn=8     ! minimum number of neighbours to explore
-    !integer,parameter :: critdim=123  ! dimension of the array with the critical values
     integer :: limit
-    real*8, parameter  :: Sharpness=1.0 ! Filter criteria, the lower, the smoother
+    !###
+    !integer,parameter :: critdim=123  ! dimension of the array with the critical values
+!    real*8, parameter  :: Sharpness=1.0 ! Filter criteria, the lower, the smoother
     real*8,intent(inout) :: Rho(Nele)        ! Density
     real*8,allocatable :: Rho_err(:)    ! Density error
     real*8,allocatable :: Rho_prob(:)   ! Probability of having maximum Rho
@@ -84,11 +86,7 @@ contains
     id_err=0
 
     call get_densities_and_dc(id_err)            ! from the distances, compute densities and dc
-!    open (22,file="my_densities.dat")
-!    write(22,*) id_err
     call clustering(id_err)                      ! get Clusters
-!    write(22,*) id_err
-!    close(22)
     if (merge.eq.1) then
        call merging(id_err) ! Generate a new matrix without peaks within border error  
        Cluster=Cluster_m
@@ -254,12 +252,8 @@ contains
             Rho(i)=1./Rho(i)
             Rho_err(i)=max(Rho(i)/sqrt(float(Nstar(i))),Rho(i)*Rho(i)*sqrt(Rho_err(i)))
          endif
-         ! density output: N, n*,density,Error in density,density from knn formula
-!         write (22,'(i6,1x,i3,1x,3(f28.9,1x))') i,Nstar(i),Rho(i),Rho_err(i),rhg 
-         ! ### ### COS'E' rhg????????? ### ### tipo il raggio...
       enddo
       deallocate (Vols,iVols)
-!      close (22)
       !      allocate (filter(Nele))
       allocate (backgr(Nele))
       allocate (scarti(Nele))
@@ -312,27 +306,13 @@ contains
             endif
          enddo
       enddo
-!      write (51,*) "Filter iterations=",niter
-!      write (51,*) "Filtered elements=",nfilter
       scarti(:)=filter(:)
-!      open (22,file='filter.dat')
-!      do i=1,Nele
-!         if (filter(i)) then
-!            write (22,*) 1
-!         else
-!            write (22,*) 0
-!         endif
-!      enddo
-!      close (22)
       !Get dc
       allocate (dc(Nele))
-!      open (21,file="dc.dat")
       do i=1,Nele
          j=Nlist(i,Nstar(i))
          dc(i)=gDist(i,j)
-!         write (21,*) dc(i)
       enddo
-!      close (21)
       return
 211   id_err=8
       return
@@ -386,18 +366,15 @@ contains
             endif
          endif
       enddo
-!      write (51,*) "Nclus:",Nclus
       allocate (Centers(Nclus))
       nonfilter=0
       do i=1,Nele
          if (Cluster(i).ne.0) then
             Centers(Cluster(i))=i
- !           write (51,*) "Cluster:",Cluster(i),"Center:",i
          endif
          if (.not.filter(i)) nonfilter=nonfilter+1
       enddo
       nassign=Nclus
-!      write(22,*) id_err,Nclus !###
       if (Nclus.gt.1) then
 
          ! copy of rho (not efficient, but clarify the code)
@@ -416,7 +393,6 @@ contains
 
          ! Assign not filtered
 
-!         write (51,*) "Assignation of not filtered points"
          do i=1,Nele
             j=iRho(i)
             if (.not.filter(j).and.Cluster(j).eq.0) then
@@ -502,7 +478,6 @@ contains
                !   endif
             endif
          enddo
-!         open (22,file="Borders_pre_merge")
          do i=1,Nclus-1
             do j=i+1,Nclus
                if (eb(i,j).ne.0) then
@@ -512,10 +487,8 @@ contains
                   Bord(i,j)=0.
                   Bord(j,i)=0.
                endif
-!               write (22,*) i,j,Bord(i,j),Bord_err(i,j)
             enddo
          enddo
-!         close (22)
 
          deallocate (Rho_prob)
          deallocate (iRho)
@@ -582,7 +555,6 @@ contains
             k=iBarrier(n)
             i=Bcorr(k,1)
             j=Bcorr(k,2)
-!            write (51,'(a,2i3,f16.4)') "BARR",i,j,Bord(i,j)
          enddo
       else
          iBarrier(1)=1
@@ -615,7 +587,6 @@ contains
                         alive=j
                         dead=i
                      endif
-!                     write (51,'(i4,1x,a,i4,a,i4)') n,"MERGED:",dead,"->",alive
                      Survive(dead)=.false.
                      do k=1,Nclus
                         if (Survive(k)) then
@@ -647,7 +618,6 @@ contains
                endif
             endif
          enddo mdo
-!         write (51,*) "MERGING ITER:",niter
       enddo
 
       ! get dictionary
@@ -656,7 +626,6 @@ contains
       do i=1,Nclus
          if (Survive(i)) Nclus_m=Nclus_m+1
       enddo
-!      write (51,*) "TOTAL CLUSTERS AFTER MERGING:",Nclus_m
       allocate (M2O(Nclus_m))
       n=0
       O2M(:)=-1
@@ -676,13 +645,10 @@ contains
          allocate (cent_m(Nclus_m),cent_err_m(Nclus_m))
          allocate (Centers_m(Nclus_m))
          Pop_m(:)=0
-!         open (21,file="cluster_merged")
          do i=1,Nele
             Cluster_m(i)=O2M(Cluster_m(i))
-!            write (21,*) i,Cluster_m(i)
             Pop_m(Cluster_m(i))=Pop_m(Cluster_m(i))+1
          enddo
-!         close (21)
          do i=1,Nclus_m
             do j=i+1,Nclus_m
                Bord_m(i,j)=Bord(M2O(i),M2O(j)) 
@@ -695,16 +661,6 @@ contains
             Centers_m(i)=Centers(M2O(i))
          enddo
 
-!         open (21,file="Properties_after_merge")
-!         do i=1,Nclus_m
-!            write (21,*) i,cent_m(i),cent_err_m(i),Centers_m(i)
-!         enddo
-!         do i=1,Nclus_m-1
-!            do j=i+1,Nclus_m
-!               write (21,*) i,j,Bord_m(i,j),Bord_err_m(i,j)
-!            enddo
-!         enddo
-!         close (21)
       else
          id_err=10
          Cluster_m(:)=1
