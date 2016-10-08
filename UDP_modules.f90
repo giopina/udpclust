@@ -21,7 +21,6 @@
 ! TODO:: Define integer and real types in an accurate way (use KIND in a module)
 !           a) normal integer gives errors when il number of elements is big
 !           b) investigate the difference between real and real*8
-!
 
 
 module dp_clustering
@@ -33,7 +32,7 @@ contains
   !### MAIN CLUSTERING ALGORITHM SUBROUTINE ###
   !############################################
   subroutine dp_advance(dist_mat,Cluster,Rho,filter,dimint,Nele,ND,id_err,merge)
-!   implicit none
+    implicit none
     !#####################
     integer,intent(in) :: merge
     integer,intent(inout) :: id_err
@@ -41,41 +40,35 @@ contains
     real*8,intent(in) :: dist_mat(ND)       ! Distance matrix !###
     integer,intent(in) :: Nele                   ! Number of elements
     integer,intent(in) :: ND                     ! Number of distances
-
     integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
 
-    !### only density calculation is using these
-    integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
-    integer,parameter :: minknn=8     ! minimum number of neighbours to explore
-    integer :: limit
-    !###
-    !integer,parameter :: critdim=123  ! dimension of the array with the critical values
-!    real*8, parameter  :: Sharpness=1.0 ! Filter criteria, the lower, the smoother
+    ! These variables are used in densities calculation and then passed to clustering
     real*8,intent(inout) :: Rho(Nele)        ! Density
     real*8,allocatable :: Rho_err(:)    ! Density error
     real*8,allocatable :: Rho_prob(:)   ! Probability of having maximum Rho
     real*8,allocatable :: dc(:)         ! Distance for density calculation
     logical,intent(inout) :: filter(Nele)  ! Point with anomalous density
-    logical,allocatable :: backgr(:)  ! Point assigned to background noise
     integer,allocatable :: Nlist(:,:) ! Neighbour list within dc
     integer,allocatable :: Nstar(:)   ! Number of neighbours taken for computing density 
-   integer,allocatable :: Centers(:) ! Centers of the peaks
+
+
+    integer,allocatable :: Centers(:) ! Centers of the peaks
     integer,intent(inout) :: Cluster(Nele) ! Cluster ID for the element
     integer :: Nclus                  ! Number of Cluster
-    integer,allocatable :: candidates_B(:)     ! Cluster of the Border candidates
+
+    ! These seems to be used for merging 
     real*8,allocatable :: Bord(:,:)     ! Border Densities
     real*8,allocatable :: Bord_err(:,:) ! Border Densities Error
-    integer,allocatable :: eb(:,:)    ! Border elements
     real*8,allocatable :: cent(:)       ! Center Density
     real*8,allocatable :: cent_err(:)   ! Center Error
-    ! Underscore m implies data after automatic merging
+    ! Underscore m implies data after automatic mergin
+    integer,allocatable :: Centers_m(:) ! Centers of the peaks
+    integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
     integer :: Nclus_m                  ! Number of Cluster merged
     real*8,allocatable :: Bord_m(:,:)     ! Border Densities
     real*8,allocatable :: Bord_err_m(:,:) ! Border Densities Error
     real*8,allocatable :: cent_m(:)       ! Center Density
     real*8,allocatable :: cent_err_m(:)   ! Center Error
-    integer,allocatable :: Centers_m(:) ! Centers of the peaks
-    integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
     ! 
     !####################################################
 
@@ -97,26 +90,27 @@ contains
       implicit none
       integer :: id_err
       !! Local variables
+      integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
+      integer,parameter :: minknn=8     ! minimum number of neighbours to explore
+      integer :: limit
       integer :: i,j,k,m,n
-      integer :: i1,i2 ! ### my integer for loops
+      integer :: i1 ! ### my integer for loops
       integer :: kadd
       integer :: niter,nfilter
       real*8,allocatable :: Vols(:)
       integer,allocatable :: iVols(:)
-      !real*8 :: critV(critdim)
       real*8, parameter :: pi=3.14159265359
       real*8 :: prefactor
-!      real*8 :: rhg,rh1,rh2,rh3,rh4,dL
       real*8 :: rhg,dl
       real*8,dimension(4) :: rh
-!      real*8 :: rjk1,rjk2,rjk3,rjk4,rjaver,rjfit
       real*8 :: rjaver,rjfit
       real*8,dimension(4) :: rjk
       logical :: viol
-      real*8 :: xmean,ymean,a,b,c                                     !  FIT
-!      real*8 :: x1,x2,x3,x4                                           ! STUFF LINEAR NOT EQUALLY POPULATED PARTITIONS
+      real*8 :: xmean,ymean,a,b                                     !  FIT
       real*8, dimension(4) :: x
       integer :: partit(4)
+
+
       id_err=0
 
       limit=min(maxknn,nint(0.5*Nele))
@@ -193,14 +187,7 @@ contains
                kadd=0
             endif
          enddo
-!         partit(:)=0 ! ### che e'?!
-!         do j=1,Nstar(i)
-!            k=mod(j,4)
-!            if (k.eq.0) k=4 ! ### !
-!            partit(k)=partit(k)+1
-!         enddo
-         ! ### direi che il ciclo di qui sopra si puo' fare in due righe ovvero
-         partit(:)=Nstar(i)/4 !-MOD(Nstar(i),4)
+         partit(:)=Nstar(i)/4
          partit(:MOD(Nstar(i),4))=partit(:MOD(Nstar(i),4))+1
          !
          ! ### ho capito il senso. Dovrebbe essere per ovviare al fatto che Nstar non e' per forza un multiplo di 4.
@@ -251,9 +238,7 @@ contains
       enddo
       deallocate (Vols,iVols)
       !      allocate (filter(Nele))
-      allocate (backgr(Nele))
 
-      backgr(:)=.false.
       ! Filter with neighbours density (Iterative version)
       filter(:)=.false.
       viol=.true.
@@ -307,7 +292,7 @@ contains
          dc(i)=gDist(i,j)
       enddo
       return
-211   id_err=8
+      id_err=8
       return
     end subroutine get_densities_and_dc
 
@@ -317,23 +302,22 @@ contains
       !! Local variables
       integer :: i,j,k
       integer :: ig,jg
-      integer :: nassign
-      integer :: nonfilter
       integer :: iref
       integer :: l
       logical :: idmax
       real*8,allocatable :: Rho_copy(:)
       integer,allocatable :: iRho(:)
       integer,allocatable :: ordRho(:) 
+      integer,allocatable :: eb(:,:)    ! Border elements
       real*8 :: d,dmin
       logical :: extend
       !!
       id_err=0
       !      allocate (Cluster(Nele))
-      allocate (candidates_B(Nele))
       !! Identify centers: delta>dc eqv. Max(rho) within dc
-      Cluster(:)=0
+      Cluster(:)=0              !
       Nclus=0
+      ! Here I compute the probability of having density rho, g_i
       allocate (Rho_prob(Nele))
       Rho_prob(:)=0.
       do i=1,Nele
@@ -345,6 +329,7 @@ contains
             enddo
          endif
       enddo
+      ! Now I'm getting the clusters
       do i=1,Nele
          if (.not.filter(i)) then
             idmax=.true.
@@ -355,22 +340,19 @@ contains
             enddo
             if (idmax) then
                Nclus=Nclus+1
-               Cluster (i)=Nclus
+               Cluster(i)=Nclus
             endif
          endif
       enddo
       allocate (Centers(Nclus))
-      nonfilter=0
       do i=1,Nele
          if (Cluster(i).ne.0) then
             Centers(Cluster(i))=i
          endif
-         if (.not.filter(i)) nonfilter=nonfilter+1
       enddo
-      nassign=Nclus
       if (Nclus.gt.1) then
 
-         ! copy of rho (not efficient, but clarify the code)
+         ! copy of rho (not efficient, but clarify the code) ### !!!
 
          allocate (Rho_copy(Nele))
          allocate (iRho(Nele))
@@ -385,7 +367,6 @@ contains
          enddo
 
          ! Assign not filtered
-
          do i=1,Nele
             j=iRho(i)
             if (.not.filter(j).and.Cluster(j).eq.0) then
@@ -395,7 +376,7 @@ contains
                   if (.not.filter(l)) then
                      if (gDist(j,l).le.dmin) then
                         ig=l
-                        dmin=gDist(j,l)
+                        dmin=gDist(j,l) !
                      endif
                   endif
                enddo
@@ -426,7 +407,6 @@ contains
          Bord(:,:)=-9.9D99
          Bord_err(:,:)=0.
          eb(:,:)=0
-         candidates_B(:)=0
          
          ! ### questo si puo' fare in maniera migliore? Magari senza dc che viene usato solo qua e non sembra utile.
          do i=1,Nele ! si puo' fare il loop solo su i filter?
@@ -454,7 +434,6 @@ contains
                      endif
                   enddo
                   if (extend) then
-                     candidates_B(i)=cluster(jg)
                      if (Rho_prob(iref).gt. Bord(cluster(i),cluster(jg))) then
                         Bord(cluster(i),cluster(jg))=Rho_prob(iref)
                         Bord(cluster(jg),cluster(i))=Rho_prob(iref)
