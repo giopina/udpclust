@@ -128,6 +128,7 @@ class cluster_UDP:
 #        if self.ctrajs==None:
         ctrajs=[]
         it=0
+        # usa isinstance(tica_traj,list/np.array) to understand which type it has
         for tt in tica_traj:
             old_icl=len(self.cores_idx) # fake microstate, where u start all the trj and never enter again
             ct=[]
