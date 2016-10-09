@@ -301,13 +301,12 @@ contains
       integer :: id_err
       !! Local variables
       integer :: i,j,k
-      integer :: ig,jg
+      integer :: ig
       integer :: iref
       integer :: l
       logical :: idmax
       real*8,allocatable :: Rho_copy(:)
       integer,allocatable :: iRho(:)
-      integer,allocatable :: ordRho(:) 
       integer,allocatable :: eb(:,:)    ! Border elements
       real*8 :: d,dmin
       logical :: extend
@@ -352,8 +351,7 @@ contains
       enddo
       if (Nclus.gt.1) then
 
-         ! copy of rho (not efficient, but clarify the code) ### !!!
-
+         ! copy of rho (not efficient, but clarifies the code) ### !!!
          allocate (Rho_copy(Nele))
          allocate (iRho(Nele))
          Rho_copy(:)=-Rho_prob(:)
@@ -361,18 +359,13 @@ contains
          call HPSORT(Nele,Rho_copy,iRho) ! iRho contains the order in density (iRho(1) is the element with highest Rho...)
          deallocate (Rho_copy)
 
-         allocate (ordRho(Nele))
-         do i=1,Nele
-            ordRho(iRho(i))=i                 ! ordRho is the complementary of iRho. Given an element, ordRho returns its order in density
-         enddo
-
          ! Assign not filtered
          do i=1,Nele
             j=iRho(i)
             if (.not.filter(j).and.Cluster(j).eq.0) then
                dmin=9.9E29
                do k=1,i-1
-                  l=iRho(k)
+                  l=iRho(k) ! ### questa cosa mi da davvero un vantaggio?
                   if (.not.filter(l)) then
                      if (gDist(j,l).le.dmin) then
                         ig=l
@@ -394,11 +387,11 @@ contains
                      d=gDist(i,j)
                      if (d.le.dmin) then
                         dmin=d
-                        jg=j
+                        ig=j
                      endif
                   endif
                enddo
-               Cluster(i)=Cluster(jg)
+               Cluster(i)=Cluster(ig)
             endif
          enddo
          ! find border densities
@@ -418,7 +411,7 @@ contains
                         d=gDist(i,j)
                         if (d.lt.dmin) then
                            dmin=d
-                           jg=j
+                           ig=j
                         endif
                      endif
                   endif
@@ -430,17 +423,17 @@ contains
                   do while ( (k.lt.Nstar(i)).and.extend)
                      k=k+1
                      if (cluster(Nlist(i,k)).eq.cluster(i)) then
-                        if (gDist(Nlist(i,k),jg).lt.dmin) extend=.false.
+                        if (gDist(Nlist(i,k),ig).lt.dmin) extend=.false.
                      endif
                   enddo
                   if (extend) then
-                     if (Rho_prob(iref).gt. Bord(cluster(i),cluster(jg))) then
-                        Bord(cluster(i),cluster(jg))=Rho_prob(iref)
-                        Bord(cluster(jg),cluster(i))=Rho_prob(iref)
-                        Bord_err(cluster(i),cluster(jg))=Rho_err(iref)
-                        Bord_err(cluster(jg),cluster(i))=Rho_err(iref)
-                        eb(cluster(i),cluster(jg))=iref
-                        eb(cluster(jg),cluster(i))=iref
+                     if (Rho_prob(iref).gt. Bord(cluster(i),cluster(ig))) then
+                        Bord(cluster(i),cluster(ig))=Rho_prob(iref)
+                        Bord(cluster(ig),cluster(i))=Rho_prob(iref)
+                        Bord_err(cluster(i),cluster(ig))=Rho_err(iref)
+                        Bord_err(cluster(ig),cluster(i))=Rho_err(iref)
+                        eb(cluster(i),cluster(ig))=iref
+                        eb(cluster(ig),cluster(i))=iref
                      endif
                   endif
                endif
@@ -462,7 +455,6 @@ contains
 
          deallocate (Rho_prob)
          deallocate (iRho)
-         deallocate (ordRho)
          ! Info per graph pre automatic merging
          allocate (cent(Nclus))
          allocate (cent_err(Nclus))
