@@ -62,6 +62,8 @@ class cluster_UDP:
         if coring:
             ### find core sets
             self.__find_core_sets()
+        else:
+            self.__find_core_sets(R_CORE=1.)
 
     def __clustering(self,dmat):
         # 1) initialize quantities that will be computed by the fortran subroutine
@@ -134,9 +136,9 @@ class cluster_UDP:
                 sqdists=distance.cdist(self.trj_tot,np.array([frame]),'sqeuclidean')[:,0] # should be faster
                 idx=np.argmin(sqdists)
                 icl=self.frame_cl[idx]
+                
                 if idx not in self.cores_idx[icl]:
                     icl=old_icl
-
                 if old_icl>=0:
                     ct.append(icl)
                 old_icl=icl
