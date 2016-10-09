@@ -55,7 +55,6 @@ contains
     integer,allocatable :: Centers(:) ! Centers of the peaks
     integer,intent(inout) :: Cluster(Nele) ! Cluster ID for the element
     integer :: Nclus                  ! Number of Cluster
-
     ! These seems to be used for merging 
     real*8,allocatable :: Bord(:,:)     ! Border Densities
     real*8,allocatable :: Bord_err(:,:) ! Border Densities Error
@@ -69,7 +68,6 @@ contains
     real*8,allocatable :: Bord_err_m(:,:) ! Border Densities Error
     real*8,allocatable :: cent_m(:)       ! Center Density
     real*8,allocatable :: cent_err_m(:)   ! Center Error
-    ! 
     !####################################################
 
     id_err=0
@@ -496,7 +494,7 @@ contains
       integer :: O2M(Nclus) ! Conversion from original cluster number to its equivalent in merged
 
       id_err=0
-      Nbarr=(Nclus*Nclus-Nclus)/2
+      Nbarr=(Nclus*Nclus-Nclus)/2 ! n. of contacts between clusters
       allocate (Barrier(Nbarr))
       allocate (Barrier_err(Nbarr))
       allocate (iBarrier(Nbarr))
@@ -513,11 +511,6 @@ contains
       enddo
       if (Nbarr.gt.1) then
          call HPSORT(Nbarr,Barrier,iBarrier)
-         do n=1,Nbarr
-            k=iBarrier(n)
-            i=Bcorr(k,1)
-            j=Bcorr(k,2)
-         enddo
       else
          iBarrier(1)=1
       endif
@@ -600,7 +593,6 @@ contains
       enddo
 
       ! get survival characteristics
-
       if (Nclus_m.gt.1) then
          allocate (Bord_m(Nclus_m,Nclus_m),Bord_err_m(Nclus_m,Nclus_m))
          allocate (cent_m(Nclus_m),cent_err_m(Nclus_m))
