@@ -59,7 +59,7 @@ class cluster_UDP:
             dists=distance.cdist(trj_tot[f0],np.array([trj_tot[i]]))[:,0]
             imin=np.argmin(dists)
             self.rho[i]=self.rho[f0[imin]]
-        if coring:
+        if self.coring:
             ### find core sets
             self.__find_core_sets()
         else:
@@ -137,10 +137,9 @@ class cluster_UDP:
                 idx=np.argmin(sqdists)
                 icl=self.frame_cl[idx]
                 
-                if idx not in self.cores_idx[icl]:
+                if self.coring and idx not in self.cores_idx[icl]:
                     icl=old_icl
-                if old_icl>=0:
-                    ct.append(icl)
+                ct.append(icl)
                 old_icl=icl
             ctrajs.append(np.array(ct))
             it+=1

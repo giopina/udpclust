@@ -34,14 +34,14 @@ for line in open(f_big,'r'):
 traj_big=[np.array(traj_big)]
 
 print 'now assigning'
-frames_idx=dp.assign(traj_big)
-clusters_big=[[] for i in range(dp.n_clusters)]
+frames_idx=cl.assign(traj_big)
+clusters_big=[[] for i in range(cl.n_clusters)]
 iframe=0
 for fr in frames_idx[0]:
     clusters_big[fr].append(iframe)
     iframe+=1
 
-fh=open(name+'_big_cl_idx.dat','w')
+fh=open(sys.argv[4]+'_big_cl_idx.dat','w')
 icl=0
 for clust in clusters_big:
     icl+=1
