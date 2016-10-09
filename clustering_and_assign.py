@@ -1,9 +1,17 @@
 ### ---------------------------------------------
 ### Example script that uses the UDPClust class 
 ### to perform unsupervised density peak clustering
+### Use this script if your trajectory is too big to
+### be clustered directly.
 ### ---------------------------------------------
-### usage: python clustering.py input_file_name dimensionality output_file_name
-### 
+### usage: suppose you have your data set stored in big_input_file
+### 1) save a representative subset of your data set in small_input_file
+### 2) run 
+###        python clustering.py small_input_file big_input_file dimensionality output_name
+### ---------------------------------------------
+### output: - output_name_cl_idx.dat has the indexes of the frames in small_input_file
+###         - output_name_big_cl_idx.dat has the indexes of the frames in big_input_file
+### ---------------------------------------------
 ### NB: the dimensionality is a critical parameter and sometimes not trivial to estimate
 ###     ask to Elena Facco, for further help on this
 ### ---------------------------------------------
