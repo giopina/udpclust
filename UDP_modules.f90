@@ -45,29 +45,29 @@ contains
     ! These variables are used in densities calculation and then passed to clustering
     real*8,intent(inout) :: Rho(Nele)        ! Density
     real*8,allocatable :: Rho_err(:)    ! Density error
-    real*8,allocatable :: Rho_prob(:)   ! Probability of having maximum Rho
-    real*8,allocatable :: dc(:)         ! Distance for density calculation
-    logical,intent(inout) :: filter(Nele)  ! Point with anomalous density
+    real*8,allocatable :: dc(:)         ! Dist for density calculation
+    logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
     integer,allocatable :: Nlist(:,:) ! Neighbour list within dc
-    integer,allocatable :: Nstar(:)   ! Number of neighbours taken for computing density 
-
-
+    integer,allocatable :: Nstar(:)   ! N. of NN taken for comp dens
+       
     integer,allocatable :: Centers(:) ! Centers of the peaks
     integer,intent(inout) :: Cluster(Nele) ! Cluster ID for the element
     integer :: Nclus                  ! Number of Cluster
     ! These seems to be used for merging 
     real*8,allocatable :: Bord(:,:)     ! Border Densities
     real*8,allocatable :: Bord_err(:,:) ! Border Densities Error
+
     real*8,allocatable :: cent(:)       ! Center Density
     real*8,allocatable :: cent_err(:)   ! Center Error
     ! Underscore m implies data after automatic mergin
-    integer,allocatable :: Centers_m(:) ! Centers of the peaks
     integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
     integer :: Nclus_m                  ! Number of Cluster merged
-    real*8,allocatable :: Bord_m(:,:)     ! Border Densities
-    real*8,allocatable :: Bord_err_m(:,:) ! Border Densities Error
-    real*8,allocatable :: cent_m(:)       ! Center Density
-    real*8,allocatable :: cent_err_m(:)   ! Center Error
+    ! ### these variables were only stored for output
+!    integer,allocatable :: Centers_m(:) ! Centers of the peaks
+!    real*8,allocatable :: Bord_m(:,:)     ! Border Densities
+!    real*8,allocatable :: Bord_err_m(:,:) ! Border Densities Error
+!    real*8,allocatable :: cent_m(:)       ! Center Density
+!    real*8,allocatable :: cent_err_m(:)   ! Center Error
     !####################################################
 
     id_err=0
@@ -303,6 +303,7 @@ contains
       integer :: iref
       integer :: l
       logical :: idmax
+      real*8,allocatable :: Rho_prob(:)   ! Probability of having maximum Rho
       real*8,allocatable :: Rho_copy(:)
       integer,allocatable :: iRho(:)
       integer,allocatable :: eb(:,:)    ! Border elements
@@ -380,15 +381,28 @@ contains
          do i=1,Nele
             if (Cluster(i).eq.0) then
                dmin=9.9d99
-               do j=1,Nele
-                  if ((Cluster(j).ne.0).and.(.not.filter(j))) then
-                     d=gDist(i,j)
+               do j=1,Nstar(i) ! find the min d in not filt elements
+                  l=Nlist(i,j)
+                  if ((Cluster(l).ne.0).and.(.not.filter(l))) then
+                     d=gDist(i,l)
                      if (d.le.dmin) then
                         dmin=d
-                        ig=j
+                        ig=l
                      endif
                   endif
                enddo
+               if (dmin.gt.9.8d99) then
+                  do j=1,Nele ! find the min d in not filter elements
+                     if ((Cluster(j).ne.0).and.(.not.filter(j))) then
+                        d=gDist(i,j)
+                        if (d.le.dmin) then
+                           dmin=d
+                           ig=j
+                        endif
+                     endif
+                  enddo
+               endif
+
                Cluster(i)=Cluster(ig)
             endif
          enddo
@@ -512,7 +526,7 @@ contains
       if (Nbarr.gt.1) then
          call HPSORT(Nbarr,Barrier,iBarrier)
       else
-         iBarrier(1)=1
+         iBarrier(1)=1 !e gli altri?
       endif
       Survive(:)=.true.
       change=.true.
@@ -594,24 +608,23 @@ contains
 
       ! get survival characteristics
       if (Nclus_m.gt.1) then
-         allocate (Bord_m(Nclus_m,Nclus_m),Bord_err_m(Nclus_m,Nclus_m))
-         allocate (cent_m(Nclus_m),cent_err_m(Nclus_m))
-         allocate (Centers_m(Nclus_m))
+!         allocate (Bord_m(Nclus_m,Nclus_m),Bord_err_m(Nclus_m,Nclus_m))
+!         allocate (cent_m(Nclus_m),cent_err_m(Nclus_m))
+!         allocate (Centers_m(Nclus_m))
          do i=1,Nele
             Cluster_m(i)=O2M(Cluster_m(i))
          enddo
-         do i=1,Nclus_m
-            do j=i+1,Nclus_m
-               Bord_m(i,j)=Bord(M2O(i),M2O(j)) 
-               Bord_err_m(i,j)=Bord_err(M2O(i),M2O(j)) 
-               Bord_m(j,i)=Bord(M2O(i),M2O(j)) 
-               Bord_err_m(j,i)=Bord_err(M2O(i),M2O(j)) 
-            enddo
-            cent_m(i)=cent(M2O(i))
-            cent_err_m(i)=cent_err(M2O(i))
-            Centers_m(i)=Centers(M2O(i))
-         enddo
-
+!         do i=1,Nclus_m
+!            do j=i+1,Nclus_m
+!               Bord_m(i,j)=Bord(M2O(i),M2O(j)) 
+!               Bord_err_m(i,j)=Bord_err(M2O(i),M2O(j)) 
+!               Bord_m(j,i)=Bord(M2O(i),M2O(j)) 
+!               Bord_err_m(j,i)=Bord_err(M2O(i),M2O(j)) 
+!            enddo
+!            cent_m(i)=cent(M2O(i))
+!            cent_err_m(i)=cent_err(M2O(i))
+!            Centers_m(i)=Centers(M2O(i))
+!         enddo
       else
          id_err=10
          Cluster_m(:)=1
