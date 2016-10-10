@@ -300,7 +300,6 @@ contains
       !! Local variables
       integer :: i,j,k
       integer :: ig
-      integer :: iref
       integer :: l
       logical :: idmax
       real*8,allocatable :: Rho_prob(:)   ! Probability of having maximum Rho
@@ -349,6 +348,11 @@ contains
          endif
       enddo
       if (Nclus.gt.1) then
+      ! if (Nclus.lt.1) then   
+      !   Cluster(:)=1
+      !   id_err=9
+      !   RETURN
+      !endif
 
          ! copy of rho (not efficient, but clarifies the code) ### !!!
          allocate (Rho_copy(Nele))
@@ -378,6 +382,7 @@ contains
 
 
          ! Assign filtered to the same Cluster as its nearest unfiltered neighbour
+         ! what happens if all neighbors are filtered
          do i=1,Nele
             if (Cluster(i).eq.0) then
                dmin=9.9d99
@@ -414,45 +419,91 @@ contains
          eb(:,:)=0
          
          ! ### questo si puo' fare in maniera migliore? Magari senza dc che viene usato solo qua e non sembra utile.
+         !do i=1,Nele ! si puo' fare il loop solo su i filter?
+         !   if (.not.filter(i)) then ! what if it is not filtered?
+         !      dmin=9.9d99
+         !      do j=1,Nele
+         !         if (.not.filter(j)) then
+         !            if (cluster(j).ne.cluster(i)) then
+         !               d=gDist(i,j)
+         !               if (d.lt.dmin) then
+         !                  dmin=d
+         !                  ig=j
+         !               endif
+         !            endif
+         !         endif
+         !      enddo
+         !      if (dmin.le.dc(i)) then
+         !         iref=i
+         !         k=0
+         !         extend=.true.
+         !         do while ( (k.lt.Nstar(i)).and.extend)
+         !            k=k+1
+         !            if (cluster(Nlist(i,k)).eq.cluster(i)) then
+         !               if (gDist(Nlist(i,k),ig).lt.dmin) extend=.false.
+         !            endif
+         !         enddo
+         !         if (extend) then
+         !            if (Rho_prob(iref).gt. Bord(cluster(i),cluster(ig))) then
+         !               Bord(cluster(i),cluster(ig))=Rho_prob(iref)
+         !               Bord(cluster(ig),cluster(i))=Rho_prob(iref)
+         !               Bord_err(cluster(i),cluster(ig))=Rho_err(iref)
+         !               Bord_err(cluster(ig),cluster(i))=Rho_err(iref)
+         !               eb(cluster(i),cluster(ig))=iref
+         !               eb(cluster(ig),cluster(i))=iref
+         !            endif
+         !         endif
+         !      endif !dmin.le.dc(i)
+         !   endif !filter
+         !enddo ! i=1,Nele
+         ! ######################3
+         ! ### my version
          do i=1,Nele ! si puo' fare il loop solo su i filter?
-            if (.not.filter(i)) then
-               dmin=9.9d99
-               do j=1,Nele
-                  if (.not.filter(j)) then
-                     if (cluster(j).ne.cluster(i)) then
-                        d=gDist(i,j)
-                        if (d.lt.dmin) then
-                           dmin=d
-                           ig=j
-                        endif
-                     endif
-                  endif
-               enddo
-               if (dmin.le.dc(i)) then
-                  iref=i
-                  k=0
-                  extend=.true.
-                  do while ( (k.lt.Nstar(i)).and.extend)
-                     k=k+1
-                     if (cluster(Nlist(i,k)).eq.cluster(i)) then
-                        if (gDist(Nlist(i,k),ig).lt.dmin) extend=.false.
-                     endif
-                  enddo
-                  if (extend) then
-                     if (Rho_prob(iref).gt. Bord(cluster(i),cluster(ig))) then
-                        Bord(cluster(i),cluster(ig))=Rho_prob(iref)
-                        Bord(cluster(ig),cluster(i))=Rho_prob(iref)
-                        Bord_err(cluster(i),cluster(ig))=Rho_err(iref)
-                        Bord_err(cluster(ig),cluster(i))=Rho_err(iref)
-                        eb(cluster(i),cluster(ig))=iref
-                        eb(cluster(ig),cluster(i))=iref
-                     endif
+            if (filter(i)) CYCLE
+            ! ### non so farlo bene...
+            !do j=1,Nstar(i)
+            !   l=Nlist(i,j)
+            !   if (cluster(l).ne.cluster(i)) then
+            !      
+            !   endif
+            !enddo
+            dmin=9.9d99
+            do j=1,Nstar(i)
+               l=Nlist(i,j)
+               if (filter(l)) CYCLE
+               if (cluster(l).eq.cluster(i)) CYCLE
+               d=gDist(i,l)
+               if (d.lt.dmin) then
+                  dmin=d
+                  ig=l
+               endif               
+            enddo
+            if (dmin.gt.9.8d99) CYCLE
+            extend=.true.
+            do k=1,Nstar(i)
+               if (cluster(Nlist(i,k)).eq.cluster(i)) then
+                  if (gDist(Nlist(i,k),ig).lt.dmin) then 
+                     extend=.false.
+                     EXIT
                   endif
                endif
-               !   endif
+            enddo
+            if (extend) then
+               if (Rho_prob(i).gt. Bord(cluster(i),cluster(ig))) then ! this if is useless? no it's not
+                  Bord(cluster(i),cluster(ig))=Rho_prob(i)
+                  Bord(cluster(ig),cluster(i))=Rho_prob(i)
+                  Bord_err(cluster(i),cluster(ig))=Rho_err(i)
+                  Bord_err(cluster(ig),cluster(i))=Rho_err(i)
+                  eb(cluster(i),cluster(ig))=i
+                  eb(cluster(ig),cluster(i))=i
+               endif
             endif
          enddo ! i=1,Nele
-         ! ### altro cluster
+
+
+
+
+         ! ### altro cluster (? non capisco sto commento che ho fatto...)
          do i=1,Nclus-1
             do j=i+1,Nclus
                if (eb(i,j).ne.0) then
