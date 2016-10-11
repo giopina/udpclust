@@ -500,9 +500,6 @@ contains
             endif
          enddo ! i=1,Nele
 
-
-
-
          ! ### altro cluster (? non capisco sto commento che ho fatto...)
          do i=1,Nclus-1
             do j=i+1,Nclus
