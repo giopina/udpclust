@@ -1,0 +1,7 @@
+How to assign points to clusters if I have information only about a limited number of NNs?
+
+The first problem arises when all the points in the neighborhood of a point are filtered
+The second problem is that the center points won't will be out of the neighborhood of many points, so when I start assigning I have to loop many times on all the points not yet assigned (it shouldn't be a problem, though, because it is anyway better than compute all the distances.)
+
+
+Can a point be at the border between three clusters?
