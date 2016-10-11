@@ -1,7 +1,7 @@
 #! /bin/bash
 
 {
-
+rm -f out-*.dat
 echo "Running the script..."
 time ./test.sh >log 2>err
 

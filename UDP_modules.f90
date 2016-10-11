@@ -45,7 +45,7 @@ contains
     ! These variables are used in densities calculation and then passed to clustering
     real*8,intent(inout) :: Rho(Nele)        ! Density
     real*8,allocatable :: Rho_err(:)    ! Density error
-    real*8,allocatable :: dc(:)         ! Dist for density calculation
+!    real*8,allocatable :: dc(:)         ! Dist for density calculation
     logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
     integer,allocatable :: Nlist(:,:) ! Neighbour list within dc
     integer,allocatable :: Nstar(:)   ! N. of NN taken for comp dens
@@ -283,15 +283,15 @@ contains
             endif
          enddo
       enddo
-      !Get dc
-      allocate (dc(Nele))
-      do i=1,Nele
-         j=Nlist(i,Nstar(i))
-         dc(i)=gDist(i,j)
-      enddo
+!      !Get dc
+!      allocate (dc(Nele))
+!      do i=1,Nele
+!         j=Nlist(i,Nstar(i))
+!         dc(i)=gDist(i,j)
+!      enddo
       return
-      id_err=8
-      return
+!      id_err=8
+!      return
     end subroutine get_densities_and_dc
 
     subroutine clustering(id_err)
