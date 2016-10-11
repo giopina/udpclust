@@ -13,12 +13,15 @@ def locknn(dmat,Nele,dimint,maxknn=496):
     # outputs will be:
     # Rho(Nele)         : Density
     # Rho_err(Nele)     : Density error
-    # filter(Nele)      : Pnt with anomalous dens
+    # filt(Nele)      : pnts with anomalous dens
     # Nlist(Nele,maxknn): Neighbour list within dc. 2nd dim maybe can be reduced but maybe not (before was =limit)
     # Nstar(Nele)       : N. of NN taken for comp dens
     #
     #use critfile !!!
     
+    Rho=np.zeros(Nele)
+    Rho_err=np.zeros(Nele)
+    filt=np.zeros(Nele)
     minknn=8 # minimum number of neighbours to explore
 
     id_err=0
@@ -48,7 +51,7 @@ def locknn(dmat,Nele,dimint,maxknn=496):
     #          n=n*i
     #       prefactor=2.*float(m)*(4.*np.pi)**k/(float(n))
 
-    iVols=-np.ones(Nele) #int
+    #    iVols=-np.ones(Nele) #int
 
     for i in range(Nele):
         Vols=np.ones(Nele)*9.9e99 #float
@@ -99,60 +102,65 @@ def locknn(dmat,Nele,dimint,maxknn=496):
         # get inv rho of the four quarters
         #            j=Nstar(i)/4
         #            a=dfloat(j)
-        
-          rh(1)=Vols(partit(1))/dfloat(partit(1))
-          rh(2)=(Vols(partit(1)+partit(2))-Vols(partit(1)))/dfloat(partit(2))
-          rh(3)=(Vols(partit(1)+partit(2)+partit(3))-Vols(partit(1)+partit(2)))/dfloat(partit(3))
-          rh(4)=(Vols(partit(1)+partit(2)+partit(3)+partit(4))-Vols(partit(1)+partit(2)+partit(3)))/dfloat(partit(4))
-          ! make the quadratic fit rhj=1/rho+C*j^2
-          xmean=0.25*sum(x)
-          ymean=0.25*sum(rh)
-          b=SUM((x-xmean)**2)
-          a=SUM((x-xmean)*(rh-ymean))
-          a=a/b
-          rjfit=ymean-a*xmean
-          ! Perform jacknife resampling for estimate the error (it includes statistical
-          ! error and curvature error) 
-          do i1=1,4
-             xmean=(SUM(x)-x(i1))/dfloat(3)
-             ymean=(SUM(rh)-rh(i1))/dfloat(3)
-             b=SUM((x-xmean)**2)-(x(i1)-xmean)**2
-             a=SUM((x-xmean)*(rh-ymean))-(x(i1)-xmean)*(rh(i1)-ymean)
-             a=a/b
-             !###
-             rjk(i1)=ymean-a*xmean
-          enddo
-          rjaver=0.25*SUM(rjk)
-          Rho(i)=4.*rjfit-3.*rjaver
-          Rho_err(i)=0.75*SUM((rjk-rjaver)**2)
-          Rho(i)=1./Rho(i)
-          Rho_err(i)=max(Rho(i)/sqrt(float(Nstar(i))),Rho(i)*Rho(i)*sqrt(Rho_err(i)))
-       endif
-    enddo
-    deallocate (Vols,iVols)
+        for i in range(4):
+            rh[i]=( Vols[iVols[ np.sum(partit[:i+1]) ]] - Vols[iVols[ np.sum(partit[:i]) ]] ) / float(partit[i])
+        #rh[0]=Vols[iVols[partit[0]]]/float(partit[0])
+        #rh[1]=(Vols[iVols[partit[0]+partit[1]]]-Vols[iVols[partit[0]]])/float(partit[1])
+        #rh[2]=(Vols[iVols[partit[0]+partit[1]+partit[2]]]-Vols[iVols[partit[0]+partit[1]]])/float(partit[2])
+        #rh[3]=(Vols[iVols[np.sum(partit)]]-Vols[iVols[np.sum[partit[:3]])/float(partit[3])
 
-    ! Filter with neighbours density (Iterative version)
-    filter(:)=.false.
-    viol=.true.
-    niter=0
-    do while (viol)
-       niter=niter+1
-       viol=.false.
-       nfilter=0
-       do i=1,Nele
-          ! compute average density in the neighborhood and standard dev.
-          if (.not.filter(i)) then
+        # make the quadratic fit rhj=1/rho+C*j^2
+        xmean=np.mean(x)
+        ymean=np.mean(rh)
+        b=np.sum((x-xmean)**2)
+        a=np.sum((x-xmean)*(rh-ymean))
+        a=a/b
+        rjfit=ymean-a*xmean
+        # Perform jacknife resampling for estimate the error (it includes statistical
+        # error and curvature error) 
+        for i in range(4):
+            x_temp=np.concatenate(x[:i],x[i+1:])
+            rh_temp=np.concatenate(rh[:i],rh[i+1:])
+            xmean=np.mean(x_temp)
+            ymean=np.mean(rh_temp)
+            b=np.sum((x_temp-xmean)**2)
+            a=np.sum((x_temp-xmean)*(rh_temp-ymean))
+            a=a/b
+            rjk[i]=ymean-a*xmean
+
+
+        rjaver=np.mean(rjk)
+        Rho[i]=4.*rjfit-3.*rjaver
+        Rho_err[i]=0.75*np.sum((rjk-rjaver)**2)
+        Rho[i]=1./Rho[i]
+        Rho_err[i]=max(Rho[i]/sqrt(float(Nstar[i])),Rho[i]*Rho[i]*sqrt(Rho_err[i]))
+
+        del (Vols,iVols)
+
+        # Filter with neighbours density (Iterative version)
+        #    filt(:)=.false.
+        viol=True
+        niter=0
+        while (viol):
+            niter=niter+1
+            viol=False
+            nfilt=0
+            for i in range(Nele):
+                # compute average density in the neighborhood and standard dev.
+
+### VOY POR AQUI
+          if (.not.filt(i)) then
              ! ### come puo' essere Rho minore di zero...!?
              if ((Rho(i).lt.0).or.(Rho_err(i).gt.Rho(i))) then
-                filter(i)=.true.
+                filt(i)=.true.
                 viol=.true.
              else
                 a=0.
                 b=0.
                 n=0
-                ! ### questo prob si puo' fare senza loop ma bisogna pensarci (c'e' da considerare i filter...)
+                ! ### questo prob si puo' fare senza loop ma bisogna pensarci (c'e' da considerare i filt...)
                 do j=1,Nstar(i) 
-                   if (.not.filter(Nlist(i,j))) then
+                   if (.not.filt(Nlist(i,j))) then
                       a=a+Rho(Nlist(i,j))
                       b=b+Rho(Nlist(i,j))**2
                       n=n+1
@@ -163,17 +171,17 @@ def locknn(dmat,Nele,dimint,maxknn=496):
                    if (a*a.le.b/float(n)) then
                       b=dsqrt(b/dfloat(n)-a*a)    ! std. dev.
                       if (((Rho(i)-a)).gt.sqrt(b*b+Rho_err(i)*Rho_err(i))) then
-                         filter(i)=.true.
+                         filt(i)=.true.
                          viol=.true.
                       endif
                    endif
                 else
-                   filter(i)=.true.
+                   filt(i)=.true.
                    viol=.true.
                 endif
              endif
           else
-             nfilter=nfilter+1
+             nfilt=nfilt+1
           endif
        enddo
     enddo
