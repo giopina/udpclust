@@ -13,7 +13,6 @@
 import numpy as np
 import sys
 
-#import cPickle as pickle
 import UDPClust as dp
 fname=sys.argv[1]
 dim=int(sys.argv[2])
@@ -23,9 +22,20 @@ for line in open(fname,'r'):
 traj=np.array(traj)
 #np.random.shuffle(traj)
 print 'shape of input array =',traj.shape
-cl=dp.cluster_UDP(dim,traj)
-print 'Clustering done'
-#fout=open(sys.argv[3],'wb')
-#pickle.dump(cl,fout,-1)
-#fout.close()
-cl.dump_cl(sys.argv[3])
+
+#cl=dp.cluster_UDP(dim,traj)
+#print 'Clustering done'
+#rho=cl.rho
+#filt=cl.filt
+from scipy.spatial import distance
+from UDP_functions import locknn
+dmat=distance.pdist(traj)
+print 'dmat computed'
+rho,rho_err,filt,Nlist,Nstar=locknn(dmat,len(traj),dim)
+
+fh=open(sys.argv[3]+'_rho.dat','w')
+iframe=0
+for r in rho:
+    fh.write('%d %f %f\n'%(iframe,r,filt[iframe]))
+    iframe+=1
+fh.close()

@@ -326,7 +326,7 @@ contains
       implicit none
       integer :: id_err
       !! Local variables
-      integer :: i,j,k,n,l,alive,dead,niter
+      integer :: i,j,k,n,l,alive,dead,niter ! niter is useless
       logical :: Survive (Nclus)
       logical :: change
       integer :: Nbarr
@@ -593,6 +593,7 @@ contains
        enddo
        partit(:)=Nstar(i)/4
        partit(:MOD(Nstar(i),4))=partit(:MOD(Nstar(i),4))+1
+       write(12345,*) Nstar(i)
        !
        ! ### ho capito il senso. Dovrebbe essere per ovviare al fatto che Nstar non e' per forza un multiplo di 4.
        ! ### non sono sicuro se questo sia il modo migliore per farlo...
