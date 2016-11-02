@@ -42,13 +42,14 @@ contains
     integer,intent(in) :: ND                     ! Number of distances
     integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
 
+    integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
     ! These variables are used in densities calculation and then passed to clustering
     real*8,intent(inout) :: Rho(Nele)        ! Density
-    real*8,allocatable :: Rho_err(:)    ! Density error
+    real*8 :: Rho_err(Nele)    ! Density error
 !    real*8,allocatable :: dc(:)         ! Dist for density calculation
     logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
-    integer,allocatable :: Nlist(:,:) ! Neighbour list within dc
-    integer,allocatable :: Nstar(:)   ! N. of NN taken for comp dens
+    integer :: Nlist(Nele,maxknn) ! Neighbour list within dc
+    integer :: Nstar(Nele)   ! N. of NN taken for comp dens
        
     integer,allocatable :: Centers(:) ! Centers of the peaks
     integer,intent(inout) :: Cluster(Nele) ! Cluster ID for the element
@@ -62,17 +63,10 @@ contains
     ! Underscore m implies data after automatic mergin
     integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
     integer :: Nclus_m                  ! Number of Cluster merged
-    ! ### these variables were only stored for output
-!    integer,allocatable :: Centers_m(:) ! Centers of the peaks
-!    real*8,allocatable :: Bord_m(:,:)     ! Border Densities
-!    real*8,allocatable :: Bord_err_m(:,:) ! Border Densities Error
-!    real*8,allocatable :: cent_m(:)       ! Center Density
-!    real*8,allocatable :: cent_err_m(:)   ! Center Error
-    !####################################################
 
     id_err=0
-
-    call get_densities_and_dc(id_err)            ! from the distances, compute densities and dc
+    
+    call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar) ! ### my version
     call clustering(id_err)                      ! get Clusters
     if (merge.eq.1) then
        call merging(id_err) ! Generate a new matrix without peaks within border error  
@@ -82,218 +76,7 @@ contains
     return
 
   contains
-
-    subroutine get_densities_and_dc(id_err)
-      use critfile
-      implicit none
-      integer :: id_err
-      !! Local variables
-      integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
-      integer,parameter :: minknn=8     ! minimum number of neighbours to explore
-      integer :: limit
-      integer :: i,j,k,m,n
-      integer :: i1 ! ### my integer for loops
-      integer :: kadd
-      integer :: niter,nfilter
-      real*8,allocatable :: Vols(:)
-      integer,allocatable :: iVols(:)
-      real*8, parameter :: pi=3.14159265359
-      real*8 :: prefactor
-      real*8 :: rhg,dl
-      real*8,dimension(4) :: rh
-      real*8 :: rjaver,rjfit
-      real*8,dimension(4) :: rjk
-      logical :: viol
-      real*8 :: xmean,ymean,a,b                                     !  FIT
-      real*8, dimension(4) :: x
-      integer :: partit(4)
-
-
-      id_err=0
-
-      limit=min(maxknn,nint(0.5*Nele))
-      if (mod(limit,4).ne.0) then
-         limit=limit+4-mod(limit,4)
-      endif
-
-      ! get prefactor for Volume calculation
-      if (mod(dimint,2).eq.0) then
-         k=dimint/2
-         m=1
-         do i=1,k
-            m=m*i
-         enddo
-         prefactor=pi**k/(dfloat(m))
-      else
-         k=(dimint-1)/2
-         m=1
-         do i=1,k
-            m=m*i
-         enddo
-         n=m
-         do i=k+1,dimint
-            n=n*i
-         enddo
-         prefactor=2.*dfloat(m)*(4.*pi)**k/(dfloat(n))
-      endif
-
-      allocate (Nstar(Nele))
-      allocate (Rho_err(Nele))
-      allocate (Nlist(Nele,limit))
-      allocate (Vols(Nele))
-      allocate (iVols(Nele))
-
-      do i=1,Nele
-         Vols(:)=9.9E9
-         do j=1,Nele
-            if (i.ne.j) then
-               Vols(j)=prefactor*(gDist(i,j))**dimint
-            endif
-         enddo
-         call HPSORT(Nele,Vols,iVols) !sort Vols, iVols is the permutation
-         do j=1,limit
-            Nlist(i,j)=iVols(j)
-         enddo
-         ! get nstar
-         viol=.false.
-         k=minknn
-         n=1
-         do while (.not.viol)
-            rhg=dfloat(k)/Vols(k)
-            dL=dabs(4.*(rhg*(Vols(k)-Vols(3*k/4)-Vols(k/4)))/dfloat(k))
-            if (dL.gt.critV(n)) then
-               viol=.true.
-               cycle
-            endif
-            n=n+1
-            k=k+4
-            if (k.gt.limit) viol=.true.
-         enddo
-         Nstar(i)=k-4 ! ### ha senso?
-         if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
-
-         ! ### kadd funge da boolean. Qui sto aggiungendo vicini che sono 
-         ! ### a una distanza computazionalmente indistinguibile al mio calcolo
-         ! ### (ma ha senso sta roba?)
-         kadd=1
-         if (Nstar(i).eq.limit) kadd=0
-         do while (kadd.eq.1)
-            if ((abs(gDist(i,Nlist(i,Nstar(i)))-gDist(i,Nlist(i,Nstar(i)+1)))).lt.9.99D-99) then
-               Nstar(i)=Nstar(i)+1
-               if (Nstar(i).eq.limit) kadd=0
-            else
-               kadd=0
-            endif
-         enddo
-         partit(:)=Nstar(i)/4
-         partit(:MOD(Nstar(i),4))=partit(:MOD(Nstar(i),4))+1
-         !
-         ! ### ho capito il senso. Dovrebbe essere per ovviare al fatto che Nstar non e' per forza un multiplo di 4.
-         ! ### non sono sicuro se questo sia il modo migliore per farlo...
-         x(1)=dfloat(partit(1))/dfloat(Nstar(i))*0.5
-         x(2)=dfloat(partit(1))/dfloat(Nstar(i))+dfloat(partit(2))/dfloat(Nstar(i))*0.5
-         x(3)=dfloat(partit(1)+partit(2))/dfloat(Nstar(i))+dfloat(partit(3))/dfloat(Nstar(i))*0.5
-         x(4)=dfloat(partit(1)+partit(2)+partit(3))/dfloat(Nstar(i))+dfloat(partit(4))/dfloat(Nstar(i))*0.5
-         x=x*4.
-         rhg=dfloat(Nstar(i))/Vols(Nstar(i)) ! Rho without fit
-         if (Nstar(i).le.0) then
-            Rho(i)=rhg
-            Rho_err(i)=Rho(i)/dsqrt(dfloat(Nstar(i)))
-         else
-            ! get inv rho of the four quarters
-!            j=Nstar(i)/4
-!            a=dfloat(j)
-            rh(1)=Vols(partit(1))/dfloat(partit(1))
-            rh(2)=(Vols(partit(1)+partit(2))-Vols(partit(1)))/dfloat(partit(2))
-            rh(3)=(Vols(partit(1)+partit(2)+partit(3))-Vols(partit(1)+partit(2)))/dfloat(partit(3))
-            rh(4)=(Vols(partit(1)+partit(2)+partit(3)+partit(4))-Vols(partit(1)+partit(2)+partit(3)))/dfloat(partit(4))
-            ! make the quadratic fit rhj=1/rho+C*j^2
-            xmean=0.25*sum(x)
-            ymean=0.25*sum(rh)
-            b=SUM((x-xmean)**2)
-            a=SUM((x-xmean)*(rh-ymean))
-            a=a/b
-            rjfit=ymean-a*xmean
-            ! Perform jacknife resampling for estimate the error (it includes statistical
-            ! error and curvature error) 
-            ! 4 out
-            do i1=1,4
-               xmean=(SUM(x)-x(i1))/dfloat(3)
-               ymean=(SUM(rh)-rh(i1))/dfloat(3)
-               b=SUM((x-xmean)**2)-(x(i1)-xmean)**2
-               a=SUM((x-xmean)*(rh-ymean))-(x(i1)-xmean)*(rh(i1)-ymean)
-               a=a/b
-               !###
-               rjk(i1)=ymean-a*xmean
-            enddo
-            rjaver=0.25*SUM(rjk)
-            Rho(i)=4.*rjfit-3.*rjaver
-!            Rho_err(i)=0.75*((rjk1-rjaver)**2+(rjk2-rjaver)**2+(rjk3-rjaver)**2+(rjk4-rjaver)**2)
-            Rho_err(i)=0.75*SUM((rjk-rjaver)**2)
-            Rho(i)=1./Rho(i)
-            Rho_err(i)=max(Rho(i)/sqrt(float(Nstar(i))),Rho(i)*Rho(i)*sqrt(Rho_err(i)))
-         endif
-      enddo
-      deallocate (Vols,iVols)
-      !      allocate (filter(Nele))
-
-      ! Filter with neighbours density (Iterative version)
-      filter(:)=.false.
-      viol=.true.
-      niter=0
-      do while (viol)
-         niter=niter+1
-         viol=.false.
-         nfilter=0
-         do i=1,Nele
-            ! compute average density in the neighborhood and standard dev.
-            if (.not.filter(i)) then
-               ! ### come puo' essere Rho minore di zero...!?
-               if ((Rho(i).lt.0).or.(Rho_err(i).gt.Rho(i))) then
-                  filter(i)=.true.
-                  viol=.true.
-               else
-                  a=0.
-                  b=0.
-                  n=0
-                  ! ### questo prob si puo' fare senza loop ma bisogna pensarci (c'e' da considerare i filter...)
-                  do j=1,Nstar(i) 
-                     if (.not.filter(Nlist(i,j))) then
-                        a=a+Rho(Nlist(i,j))
-                        b=b+Rho(Nlist(i,j))**2
-                        n=n+1
-                     endif
-                  enddo
-                  if (n.gt.0) then
-                     a=a/dfloat(n)              ! average
-                     if (a*a.le.b/float(n)) then
-                        b=dsqrt(b/dfloat(n)-a*a)    ! std. dev.
-                        if (((Rho(i)-a)).gt.sqrt(b*b+Rho_err(i)*Rho_err(i))) then
-                           filter(i)=.true.
-                           viol=.true.
-                        endif
-                     endif
-                  else
-                     filter(i)=.true.
-                     viol=.true.
-                  endif
-               endif
-            else
-               nfilter=nfilter+1
-            endif
-         enddo
-      enddo
-!      !Get dc
-!      allocate (dc(Nele))
-!      do i=1,Nele
-!         j=Nlist(i,Nstar(i))
-!         dc(i)=gDist(i,j)
-!      enddo
-      return
-!      id_err=8
-!      return
-    end subroutine get_densities_and_dc
-
+ 
     subroutine clustering(id_err)
       implicit none
       integer :: id_err
@@ -543,7 +326,7 @@ contains
       implicit none
       integer :: id_err
       !! Local variables
-      integer :: i,j,k,n,l,alive,dead,niter
+      integer :: i,j,k,n,l,alive,dead,niter ! niter is useless
       logical :: Survive (Nclus)
       logical :: change
       integer :: Nbarr
@@ -692,57 +475,285 @@ contains
     end function gDist
     !
     !
-    SUBROUTINE HPSORT(N,RA,s_order)
-      implicit none
-      integer N,s_order(N)
-      real*8 RA(N)
-      integer L,IR,I,J,sord
-      real*8 RRA
-      do i=1,n
-         s_order(i)=i
-      enddo
-      L=N/2+1
-      IR=N
-      !The index L will be decremented from its initial value during the
-      !"hiring" (heap creation) phase. Once it reaches 1, the index IR 
-      !will be decremented from its initial value down to 1 during the
-      !"retirement-and-promotion" (heap selection) phase.
-10    continue
-      if(L > 1)then
-         L=L-1
-         RRA=RA(L)
-         sord=s_order(L)
-      else
-         RRA=RA(IR)
-         sord=s_order(IR)
-         RA(IR)=RA(1)
-         s_order(ir)=s_order(1)
-         IR=IR-1
-         if(IR.eq.1)then
-            RA(1)=RRA
-            s_order(1)=sord
-            return
-         end if
-      end if
-      I=L
-      J=L+L
-20    if(J.le.IR)then
-         if(J < IR)then
-            if(RA(J) < RA(J+1))  J=J+1
-         end if
-         if(RRA < RA(J))then
-            RA(I)=RA(J)
-            s_order(i)=s_order(j)
-            I=J; J=J+J
-         else
-            J=IR+1
-         end if
-         goto 20
-      end if
-      RA(I)=RRA
-      s_order(I)=sord
-      goto 10
-    END subroutine HPSORT
   end subroutine dp_advance
+
+  subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar)
+    use critfile
+    implicit none
+
+    integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
+    integer,parameter :: minknn=8     ! minimum number of neighbours to explore
+    !!Global variables
+    real*8,intent(in) :: dist_mat(Nele*(Nele-1)/2)       ! Distance matrix !###
+    integer,intent(in) :: Nele                   ! Number of elements
+!    integer,intent(in) :: ND                     ! Number of distances
+    integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
+
+    ! These variables are used in densities calculation and then passed to clustering
+    real*8,intent(inout) :: Rho(Nele)        ! Density
+    real*8,intent(inout) :: Rho_err(Nele)    ! Density error
+    logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
+    integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc ### dimension 2 maybe can be reduced but maybe not (before was =limit)
+    integer,intent(inout) :: Nstar(Nele)   ! N. of NN taken for comp dens
+
+
+    integer :: id_err
+    !! Local variables
+    integer :: limit
+    integer :: i,j,k,m,n
+    integer :: i1 ! ### my integer for loops
+    integer :: kadd
+    integer :: niter,nfilter
+    real*8,allocatable :: Vols(:)
+    integer,allocatable :: iVols(:)
+    real*8, parameter :: pi=3.14159265359
+    real*8 :: prefactor
+    real*8 :: rhg,dl
+    real*8,dimension(4) :: rh
+    real*8 :: rjaver,rjfit
+    real*8,dimension(4) :: rjk
+    logical :: viol
+    real*8 :: xmean,ymean,a,b                                     !  FIT
+    real*8, dimension(4) :: x
+    integer :: partit(4)
+
+
+    id_err=0
+
+    limit=min(maxknn,nint(0.5*Nele))
+    if (mod(limit,4).ne.0) then
+       limit=limit+4-mod(limit,4)
+    endif
+
+    ! get prefactor for Volume calculation
+    if (mod(dimint,2).eq.0) then
+       k=dimint/2
+       m=1
+       do i=1,k
+          m=m*i
+       enddo
+       prefactor=pi**k/(dfloat(m))
+    else
+       k=(dimint-1)/2
+       m=1
+       do i=1,k
+          m=m*i
+       enddo
+       n=m
+       do i=k+1,dimint
+          n=n*i
+       enddo
+       prefactor=2.*dfloat(m)*(4.*pi)**k/(dfloat(n))
+    endif
+
+    allocate (Vols(Nele))
+    allocate (iVols(Nele))
+
+    do i=1,Nele
+       Vols(:)=9.9E9
+       do j=1,Nele
+          if (i.ne.j) then
+             Vols(j)=prefactor*(gDist(i,j))**dimint
+          endif
+       enddo
+       call HPSORT(Nele,Vols,iVols) !sort Vols, iVols is the permutation
+       do j=1,limit
+          Nlist(i,j)=iVols(j)
+       enddo
+       ! get nstar
+       viol=.false.
+       k=minknn
+       n=1
+       do while (.not.viol)
+          rhg=dfloat(k)/Vols(k)
+          dL=dabs(4.*(rhg*(Vols(k)-Vols(3*k/4)-Vols(k/4)))/dfloat(k))
+          if (dL.gt.critV(n)) then
+             viol=.true.
+             cycle
+          endif
+          n=n+1
+          k=k+4
+          if (k.gt.limit) viol=.true.
+       enddo
+       Nstar(i)=k-4 ! ### ha senso?
+       if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
+
+       ! ### kadd funge da boolean. Qui sto aggiungendo vicini che sono 
+       ! ### a una distanza computazionalmente indistinguibile al mio calcolo
+       ! ### (ma ha senso sta roba?)
+       kadd=1
+       if (Nstar(i).eq.limit) kadd=0
+       do while (kadd.eq.1)
+          if ((abs(gDist(i,Nlist(i,Nstar(i)))-gDist(i,Nlist(i,Nstar(i)+1)))).lt.9.99D-99) then
+             Nstar(i)=Nstar(i)+1
+             if (Nstar(i).eq.limit) kadd=0
+          else
+             kadd=0
+          endif
+       enddo
+       partit(:)=Nstar(i)/4
+       partit(:MOD(Nstar(i),4))=partit(:MOD(Nstar(i),4))+1
+       write(12345,*) Nstar(i)
+       !
+       ! ### ho capito il senso. Dovrebbe essere per ovviare al fatto che Nstar non e' per forza un multiplo di 4.
+       ! ### non sono sicuro se questo sia il modo migliore per farlo...
+       x(1)=dfloat(partit(1))/dfloat(Nstar(i))*0.5
+       x(2)=dfloat(partit(1))/dfloat(Nstar(i))+dfloat(partit(2))/dfloat(Nstar(i))*0.5
+       x(3)=dfloat(partit(1)+partit(2))/dfloat(Nstar(i))+dfloat(partit(3))/dfloat(Nstar(i))*0.5
+       x(4)=dfloat(partit(1)+partit(2)+partit(3))/dfloat(Nstar(i))+dfloat(partit(4))/dfloat(Nstar(i))*0.5
+       x=x*4.
+       rhg=dfloat(Nstar(i))/Vols(Nstar(i)) ! Rho without fit
+       if (Nstar(i).le.0) then
+          Rho(i)=rhg
+          Rho_err(i)=Rho(i)/dsqrt(dfloat(Nstar(i)))
+       else
+          ! get inv rho of the four quarters
+          !            j=Nstar(i)/4
+          !            a=dfloat(j)
+          rh(1)=Vols(partit(1))/dfloat(partit(1))
+          rh(2)=(Vols(partit(1)+partit(2))-Vols(partit(1)))/dfloat(partit(2))
+          rh(3)=(Vols(partit(1)+partit(2)+partit(3))-Vols(partit(1)+partit(2)))/dfloat(partit(3))
+          rh(4)=(Vols(partit(1)+partit(2)+partit(3)+partit(4))-Vols(partit(1)+partit(2)+partit(3)))/dfloat(partit(4))
+          ! make the quadratic fit rhj=1/rho+C*j^2
+          xmean=0.25*sum(x)
+          ymean=0.25*sum(rh)
+          b=SUM((x-xmean)**2)
+          a=SUM((x-xmean)*(rh-ymean))
+          a=a/b
+          rjfit=ymean-a*xmean
+          ! Perform jacknife resampling for estimate the error (it includes statistical
+          ! error and curvature error) 
+          do i1=1,4
+             xmean=(SUM(x)-x(i1))/dfloat(3)
+             ymean=(SUM(rh)-rh(i1))/dfloat(3)
+             b=SUM((x-xmean)**2)-(x(i1)-xmean)**2
+             a=SUM((x-xmean)*(rh-ymean))-(x(i1)-xmean)*(rh(i1)-ymean)
+             a=a/b
+             !###
+             rjk(i1)=ymean-a*xmean
+          enddo
+          rjaver=0.25*SUM(rjk)
+          Rho(i)=4.*rjfit-3.*rjaver
+          Rho_err(i)=0.75*SUM((rjk-rjaver)**2)
+          Rho(i)=1./Rho(i)
+          Rho_err(i)=max(Rho(i)/sqrt(float(Nstar(i))),Rho(i)*Rho(i)*sqrt(Rho_err(i)))
+       endif
+    enddo
+    deallocate (Vols,iVols)
+
+    ! Filter with neighbours density (Iterative version)
+    filter(:)=.false.
+    viol=.true.
+    niter=0
+    do while (viol)
+       niter=niter+1
+       viol=.false.
+       nfilter=0
+       do i=1,Nele
+          ! compute average density in the neighborhood and standard dev.
+          if (.not.filter(i)) then
+             ! ### come puo' essere Rho minore di zero...!?
+             if ((Rho(i).lt.0).or.(Rho_err(i).gt.Rho(i))) then
+                filter(i)=.true.
+                viol=.true.
+             else
+                a=0.
+                b=0.
+                n=0
+                ! ### questo prob si puo' fare senza loop ma bisogna pensarci (c'e' da considerare i filter...)
+                do j=1,Nstar(i) 
+                   if (.not.filter(Nlist(i,j))) then
+                      a=a+Rho(Nlist(i,j))
+                      b=b+Rho(Nlist(i,j))**2
+                      n=n+1
+                   endif
+                enddo
+                if (n.gt.0) then
+                   a=a/dfloat(n)              ! average
+                   if (a*a.le.b/float(n)) then
+                      b=dsqrt(b/dfloat(n)-a*a)    ! std. dev.
+                      if (((Rho(i)-a)).gt.sqrt(b*b+Rho_err(i)*Rho_err(i))) then
+                         filter(i)=.true.
+                         viol=.true.
+                      endif
+                   endif
+                else
+                   filter(i)=.true.
+                   viol=.true.
+                endif
+             endif
+          else
+             nfilter=nfilter+1
+          endif
+       enddo
+    enddo
+    return
+
+
+  contains
+    !
+    real*8 function gDist(i,j)
+      integer :: i,j,k,l,m
+      l=max(i,j)
+      m=min(i,j)
+      k=(m-1)*Nele-(m*m+m)/2+l
+      gDist=dist_mat(k)
+      return
+    end function gDist
+    !
+  end subroutine get_densities
+  
+  
+  SUBROUTINE HPSORT(N,RA,s_order)
+    implicit none
+    integer N,s_order(N)
+    real*8 RA(N)
+    integer L,IR,I,J,sord
+    real*8 RRA
+    do i=1,n
+       s_order(i)=i
+    enddo
+    L=N/2+1
+    IR=N
+    !The index L will be decremented from its initial value during the
+    !"hiring" (heap creation) phase. Once it reaches 1, the index IR 
+    !will be decremented from its initial value down to 1 during the
+    !"retirement-and-promotion" (heap selection) phase.
+10  continue
+    if(L > 1)then
+       L=L-1
+       RRA=RA(L)
+       sord=s_order(L)
+    else
+       RRA=RA(IR)
+       sord=s_order(IR)
+       RA(IR)=RA(1)
+       s_order(ir)=s_order(1)
+       IR=IR-1
+       if(IR.eq.1)then
+          RA(1)=RRA
+          s_order(1)=sord
+          return
+       end if
+    end if
+    I=L
+    J=L+L
+20  if(J.le.IR)then
+       if(J < IR)then
+          if(RA(J) < RA(J+1))  J=J+1
+       end if
+       if(RRA < RA(J))then
+          RA(I)=RA(J)
+          s_order(i)=s_order(j)
+          I=J; J=J+J
+       else
+          J=IR+1
+       end if
+       goto 20
+    end if
+    RA(I)=RRA
+    s_order(I)=sord
+    goto 10
+  END subroutine HPSORT
 
 end module dp_clustering
