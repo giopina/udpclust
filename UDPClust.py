@@ -45,6 +45,8 @@ class cluster_UDP:
                     if len(stringa)*sys.getsizeof('a')>maxmem:
                         fh.write(stringa)
                         stringa=''
+            fh.write(stringa)
+            stringa=''
             fh.close()
 
 
@@ -109,7 +111,7 @@ class cluster_UDP:
     ### CORE SETS IDENTIFICATION
     def __find_core_sets(self,R_CORE=np.exp(-1)):
 #        print " Questo e' il cutoff sul rapporto della densita' core con il picco:",R_CORE
-        print " Idenitfying core sets using a cutoff of %s with respect to the peak density" % R_CORE
+        print " Identifying core sets using a cutoff of %s with respect to the peak density" % R_CORE
         self.cores_idx=[  [] for i in range(len(self.cl_idx))]
         k_cl=0
         for cluster in self.cl_idx:
