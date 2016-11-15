@@ -373,9 +373,9 @@ contains
             j=Bcorr(k,2)
             if ((Bord(i,j).gt.0.).and.(i.ne.j)) then
                if (Survive(i).and.Survive(j)) then
-                  c1=cent(i)-cent_err(i)
-                  c2=cent(j)-cent_err(j)
-                  b12=Bord(i,j)+Bord_err(i,j)
+                  c1=cent(i)-sensibility*cent_err(i)
+                  c2=cent(j)-sensibility*cent_err(j)
+                  b12=Bord(i,j)+sensibility*Bord_err(i,j)
                   if ((c1.lt.b12).or.(c2.lt.b12)) then
                      change=.true.
                      Bord(i,j)=0.
@@ -387,6 +387,9 @@ contains
                         alive=j
                         dead=i
                      endif
+            !forse queste due linee sono la differenza con alex
+                     Bord(alive,alive)=0.
+                     Bord_err(alive,alive)=0.
                      Survive(dead)=.false.
                      do k=1,Nclus
                         if (Survive(k)) then
@@ -486,7 +489,7 @@ contains
     !!Global variables
     real*8,intent(in) :: dist_mat(Nele*(Nele-1)/2)       ! Distance matrix !###
     integer,intent(in) :: Nele                   ! Number of elements
-!    integer,intent(in) :: ND                     ! Number of distances
+    !    integer,intent(in) :: ND                     ! Number of distances
     integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
 
     ! These variables are used in densities calculation and then passed to clustering
@@ -501,21 +504,26 @@ contains
     !! Local variables
     integer :: limit
     integer :: i,j,k,m,n
-    integer :: i1 ! ### my integer for loops
+!    real*8 :: is,js,ks,ms,ns
+!    integer :: i1 ! ### my integer for loops
     integer :: kadd
     integer :: niter,nfilter
     real*8,allocatable :: Vols(:)
     integer,allocatable :: iVols(:)
     real*8, parameter :: pi=3.14159265359
     real*8 :: prefactor
-    real*8 :: rhg,dl
-    real*8,dimension(4) :: rh
-    real*8 :: rjaver,rjfit
-    real*8,dimension(4) :: rjk
+    real*8 :: rhg,dL,rjaver,rjfit
+!    real*8,dimension(4) :: rh
+!    real*8 :: rjaver,rjfit
+    real*8,allocatable :: x(:),rh(:),rjk(:)
     logical :: viol
-    real*8 :: xmean,ymean,a,b                                     !  FIT
-    real*8, dimension(4) :: x
-    integer :: partit(4)
+    real*8 :: xmean,ymean,a,b,c            !  FIT
+!    real*8, dimension(4) :: x
+!    integer :: partit(4)
+    integer :: Npart, partGood,savNstar,fin
+    real*8 :: slope,yintercept
+    real*8 :: temp_err,temp_rho
+    
 
 
     id_err=0
@@ -580,64 +588,90 @@ contains
 
        ! ### kadd funge da boolean. Qui sto aggiungendo vicini che sono 
        ! ### a una distanza computazionalmente indistinguibile al mio calcolo
-       ! ### (ma ha senso sta roba?)
-       kadd=1
-       if (Nstar(i).eq.limit) kadd=0
-       do while (kadd.eq.1)
-          if ((abs(gDist(i,Nlist(i,Nstar(i)))-gDist(i,Nlist(i,Nstar(i)+1)))).lt.9.99D-99) then
-             Nstar(i)=Nstar(i)+1
-             if (Nstar(i).eq.limit) kadd=0
-          else
-             kadd=0
-          endif
-       enddo
-       partit(:)=Nstar(i)/4
-       partit(:MOD(Nstar(i),4))=partit(:MOD(Nstar(i),4))+1
-       write(12345,*) Nstar(i)
-       !
-       ! ### ho capito il senso. Dovrebbe essere per ovviare al fatto che Nstar non e' per forza un multiplo di 4.
-       ! ### non sono sicuro se questo sia il modo migliore per farlo...
-       x(1)=dfloat(partit(1))/dfloat(Nstar(i))*0.5
-       x(2)=dfloat(partit(1))/dfloat(Nstar(i))+dfloat(partit(2))/dfloat(Nstar(i))*0.5
-       x(3)=dfloat(partit(1)+partit(2))/dfloat(Nstar(i))+dfloat(partit(3))/dfloat(Nstar(i))*0.5
-       x(4)=dfloat(partit(1)+partit(2)+partit(3))/dfloat(Nstar(i))+dfloat(partit(4))/dfloat(Nstar(i))*0.5
-       x=x*4.
+       ! ### (ma ha senso sta roba?) Comunque nel nuovo prog di alex non c'e'
+       !kadd=1
+       !if (Nstar(i).eq.limit) kadd=0
+       !do while (kadd.eq.1)
+       !   if ((abs(gDist(i,Nlist(i,Nstar(i)))-gDist(i,Nlist(i,Nstar(i)+1)))).lt.9.99D-99) then
+       !      Nstar(i)=Nstar(i)+1
+       !      if (Nstar(i).eq.limit) kadd=0
+       !   else
+       !      kadd=0
+       !   endif
+       !enddo
+       ! ### ##########################3
+       Rho_err(i)=-9.9d99
        rhg=dfloat(Nstar(i))/Vols(Nstar(i)) ! Rho without fit
-       if (Nstar(i).le.0) then
-          Rho(i)=rhg
-          Rho_err(i)=Rho(i)/dsqrt(dfloat(Nstar(i)))
-       else
-          ! get inv rho of the four quarters
-          !            j=Nstar(i)/4
-          !            a=dfloat(j)
-          rh(1)=Vols(partit(1))/dfloat(partit(1))
-          rh(2)=(Vols(partit(1)+partit(2))-Vols(partit(1)))/dfloat(partit(2))
-          rh(3)=(Vols(partit(1)+partit(2)+partit(3))-Vols(partit(1)+partit(2)))/dfloat(partit(3))
-          rh(4)=(Vols(partit(1)+partit(2)+partit(3)+partit(4))-Vols(partit(1)+partit(2)+partit(3)))/dfloat(partit(4))
-          ! make the quadratic fit rhj=1/rho+C*j^2
-          xmean=0.25*sum(x)
-          ymean=0.25*sum(rh)
-          b=SUM((x-xmean)**2)
-          a=SUM((x-xmean)*(rh-ymean))
-          a=a/b
-          rjfit=ymean-a*xmean
-          ! Perform jacknife resampling for estimate the error (it includes statistical
-          ! error and curvature error) 
-          do i1=1,4
-             xmean=(SUM(x)-x(i1))/dfloat(3)
-             ymean=(SUM(rh)-rh(i1))/dfloat(3)
-             b=SUM((x-xmean)**2)-(x(i1)-xmean)**2
-             a=SUM((x-xmean)*(rh-ymean))-(x(i1)-xmean)*(rh(i1)-ymean)
-             a=a/b
-             !###
-             rjk(i1)=ymean-a*xmean
-          enddo
-          rjaver=0.25*SUM(rjk)
-          Rho(i)=4.*rjfit-3.*rjaver
-          Rho_err(i)=0.75*SUM((rjk-rjaver)**2)
-          Rho(i)=1./Rho(i)
-          Rho_err(i)=max(Rho(i)/sqrt(float(Nstar(i))),Rho(i)*Rho(i)*sqrt(Rho_err(i)))
-       endif
+       Rho(i)=rhg
+       savNstar=Nstar(i)
+       Npart=4
+       fin=Nstar(i)/2
+       do while (Npart.le.fin)
+          if (mod(Nstar(i),Npart).lt.(Nstar(i)/4)) then
+             if (mod(Nstar(i),Npart).ne.0) Nstar(i)=Nstar(i)-mod(Nstar(i),Npart)
+             ! get inv rho of the partition
+             allocate (x(Npart),rh(Npart),rjk(Npart))
+             j=Nstar(i)/Npart
+             a=dfloat(j)
+             n=0
+             do k=1,Npart
+                n=n+j
+                x(k)=dfloat(k)
+                if (k.eq.1) then 
+                   rh(k)=Vols(n)/a
+                else
+                   rh(k)=(Vols(n)-Vols(n-j))/a
+                endif
+             enddo
+             xmean=sum(x(:))/dfloat(Npart)
+             ymean=sum(rh(:))/dfloat(Npart)
+             b=0.
+             c=0.
+             do k=1,Npart
+                a=x(k)-xmean
+                b=b+a*(rh(k)-ymean)
+                c=c+a*a
+             enddo
+             a=b/c
+             slope=a
+             rjfit=ymean-a*xmean
+             yintercept=rjfit
+             ! Perform jacknife resampling for estimate the error (it includes statistical
+             ! error and curvature error) 
+             do n=1,Npart
+                xmean=(sum(x(:))-x(n))/dfloat(Npart-1)
+                ymean=(sum(rh(:))-rh(n))/dfloat(Npart-1)
+                b=0.
+                c=0.
+                do k=1,Npart
+                   if (k.ne.n) then
+                      a=x(k)-xmean
+                      b=b+a*(rh(k)-ymean)
+                      c=c+a*a
+                   endif
+                enddo
+                a=b/c
+                rjk(n)=ymean-a*xmean
+             enddo
+             rjaver=sum (rjk(:))/dfloat(Npart)
+             temp_rho=dfloat(Npart)*rjfit-dfloat(Npart-1)*rjaver
+             temp_err=0.
+             do k=1,Npart
+                temp_err=temp_err+(rjk(k)-rjaver)**2
+             enddo
+             temp_err=dfloat(Npart-1)*temp_err/dfloat(Npart)
+             temp_rho=1./temp_rho
+             temp_err=max(temp_rho/sqrt(float(Nstar(i))),temp_rho*temp_rho*sqrt(temp_err))
+             if (temp_err.gt.Rho_err(i)) then
+                Rho(i)=temp_rho
+                Rho_err(i)=temp_err
+                partGood=Npart
+             endif
+             deallocate (x,rh,rjk)
+          endif
+          Npart=Npart+1
+          Nstar(i)=savNstar
+       enddo
     enddo
     deallocate (Vols,iVols)
 
@@ -645,6 +679,12 @@ contains
     filter(:)=.false.
     viol=.true.
     niter=0
+    do i=1,Nele
+       if ((Rho(i).lt.0).or.(Rho_err(i).gt.Rho(i)).or.(Rho(i).gt.1D308)) then
+          filter(i)=.true.
+       endif
+    enddo
+
     do while (viol)
        niter=niter+1
        viol=.false.
