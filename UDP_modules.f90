@@ -31,16 +31,16 @@ contains
   !############################################
   !### MAIN CLUSTERING ALGORITHM SUBROUTINE ###
   !############################################
-  subroutine dp_advance(dist_mat,Cluster,Rho,filter,dimint,Nele,ND,id_err,merge)
+  subroutine dp_advance(dist_mat,Cluster,Rho,filter,dimint,Nele,ND,id_err,sensibility)
     implicit none
     !#####################
-    integer,intent(in) :: merge
     integer,intent(inout) :: id_err
     !!Global variables
     real*8,intent(in) :: dist_mat(ND)       ! Distance matrix !###
     integer,intent(in) :: Nele                   ! Number of elements
     integer,intent(in) :: ND                     ! Number of distances
     integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
+    real*8, intent(in) :: sensibility
 
     integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
     ! These variables are used in densities calculation and then passed to clustering
@@ -68,10 +68,8 @@ contains
     
     call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar) ! ### my version
     call clustering(id_err)                      ! get Clusters
-    if (merge.eq.1) then
-       call merging(id_err) ! Generate a new matrix without peaks within border error  
-       Cluster=Cluster_m
-    endif
+    call merging(id_err) ! Generate a new matrix without peaks within border error  
+    Cluster=Cluster_m
     !    stop
     return
 

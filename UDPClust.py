@@ -12,7 +12,7 @@ class cluster_UDP:
         
         #### store internal variables
 #        self.merge=merge # set to False if you don't want to merge non-significative clusters THIS DOES NOT WORK
-        self.merge=True # set to False if you don't want to merge non-significative clusters
+#        self.merge=True # set to False if you don't want to merge non-significative clusters
         self.coring=coring
         ### compute the distance matrix if not provided ( in this way it should be deleted at the end of the function. suggested to avoid large memory consumption)
         if dmat==None:
@@ -77,10 +77,10 @@ class cluster_UDP:
         self.filt=np.zeros(self.Npoints,dtype=np.int32)
         # 2) Fortran subroutine for clustering
         self.id_err=np.array(0,dtype=np.int32)
-
+        self.sensibility=1.0
         #fortran subroutine
         UDP_modules.dp_clustering.dp_advance\
-            (dmat,self.frame_cl,self.rho,self.filt,self.dim,self.id_err,np.array(self.merge,dtype=np.int32))
+            (dmat,self.frame_cl,self.rho,self.filt,self.dim,self.id_err,self.sensibility)
 
         self.frame_cl-=1 #back to python enumeration in arrays
         self.cl_idx=[ [] for i in range(np.max(self.frame_cl)+1)] #frames for each cluster
