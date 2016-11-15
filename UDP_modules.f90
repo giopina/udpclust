@@ -502,8 +502,8 @@ contains
     !! Local variables
     integer :: limit
     integer :: i,j,k,m,n
-!    real*8 :: is,js,ks,ms,ns
-!    integer :: i1 ! ### my integer for loops
+    real*8 :: is,js,ks,ms,ns
+    !    integer :: i1 ! ### my integer for loops
     integer :: kadd
     integer :: niter,nfilter
     real*8,allocatable :: Vols(:)
@@ -511,17 +511,17 @@ contains
     real*8, parameter :: pi=3.14159265359
     real*8 :: prefactor
     real*8 :: rhg,dL,rjaver,rjfit
-!    real*8,dimension(4) :: rh
-!    real*8 :: rjaver,rjfit
+    !    real*8,dimension(4) :: rh
+    !    real*8 :: rjaver,rjfit
     real*8,allocatable :: x(:),rh(:),rjk(:)
     logical :: viol
     real*8 :: xmean,ymean,a,b,c            !  FIT
-!    real*8, dimension(4) :: x
-!    integer :: partit(4)
+    !    real*8, dimension(4) :: x
+    !    integer :: partit(4)
     integer :: Npart, partGood,savNstar,fin
     real*8 :: slope,yintercept
     real*8 :: temp_err,temp_rho
-    
+
 
 
     id_err=0
@@ -532,6 +532,26 @@ contains
     endif
 
     ! get prefactor for Volume calculation
+    !### cambiato da Alex
+    !    if (mod(dimint,2).eq.0) then
+    !       k=dimint/2
+    !       m=1
+    !       do i=1,k
+    !          m=m*i
+    !       enddo
+    !       prefactor=pi**k/(dfloat(m))
+    !    else
+    !       k=(dimint-1)/2
+    !       m=1
+    !       do i=1,k
+    !          m=m*i
+    !       enddo
+    !       n=m
+    !       do i=k+1,dimint
+    !          n=n*i
+    !       enddo
+    !       prefactor=2.*dfloat(m)*(4.*pi)**k/(dfloat(n))
+    !    endif
     if (mod(dimint,2).eq.0) then
        k=dimint/2
        m=1
@@ -541,20 +561,24 @@ contains
        prefactor=pi**k/(dfloat(m))
     else
        k=(dimint-1)/2
-       m=1
+       ms=0.
        do i=1,k
-          m=m*i
+          ms=ms+dlog(dfloat(i))
        enddo
-       n=m
+       ns=ms
        do i=k+1,dimint
-          n=n*i
+          ns=ns+dlog(dfloat(i))
        enddo
-       prefactor=2.*dfloat(m)*(4.*pi)**k/(dfloat(n))
+       prefactor=2.*dexp(ms-ns+k*dlog(4*pi))
     endif
+
+
 
     allocate (Vols(Nele))
     allocate (iVols(Nele))
 
+    write(12345,*) Nele
+!    open(22,file='cacca.dat')
     do i=1,Nele
        Vols(:)=9.9E9
        do j=1,Nele
@@ -670,7 +694,10 @@ contains
           Npart=Npart+1
           Nstar(i)=savNstar
        enddo
+       ! ### print
+!       write (22,'(i6,1x,i3,1x,3(es28.18,1x),i3)') i,Nstar(i),Rho(i),Rho_err(i),rhg,partGood
     enddo
+!    close(22)
     deallocate (Vols,iVols)
 
     ! Filter with neighbours density (Iterative version)
