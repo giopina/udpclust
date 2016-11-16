@@ -208,11 +208,9 @@ class cluster_UDP:
     ### NEW cluster centers in the initial coordinates space
     ### (defined as points with maximum density)
     def get_centers_idx(self):
-#        if self.centers==None:
-        Nframes,Ncoords=self.trj_tot.shape
         cent_idx=[]
         for cluster in self.cl_idx:
-            cent_idx.append(np.argmax(self.rho[cluster]))
+            cent_idx.append(cluster[np.argmax(self.rho[cluster])])
         return np.array(cent_idx)
 
 
