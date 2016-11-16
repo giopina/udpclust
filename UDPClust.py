@@ -8,12 +8,13 @@ class cluster_UDP:
    
     #### this should be the constructor
 #    def __init__(self,dmat,dim,trj_tot,stride=1,merge=True):
-    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True):
+    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0):
         
         #### store internal variables
 #        self.merge=merge # set to False if you don't want to merge non-significative clusters THIS DOES NOT WORK
 #        self.merge=True # set to False if you don't want to merge non-significative clusters
         self.coring=coring
+        self.sensibility=sens
         ### compute the distance matrix if not provided ( in this way it should be deleted at the end of the function. suggested to avoid large memory consumption)
         if dmat==None:
             dmat=distance.pdist(trj_tot)
@@ -77,7 +78,6 @@ class cluster_UDP:
         self.filt=np.zeros(self.Npoints,dtype=np.int32)
         # 2) Fortran subroutine for clustering
         self.id_err=np.array(0,dtype=np.int32)
-        self.sensibility=1.0
         #fortran subroutine
         UDP_modules.dp_clustering.dp_advance\
             (dmat,self.frame_cl,self.rho,self.filt,self.dim,self.id_err,self.sensibility)
@@ -205,6 +205,15 @@ class cluster_UDP:
 #        for iframe in range(Nframes):
 #            centers[self.frame_cl[iframe]]+=self.trj_tot[iframe]            
         return centers
+    ### NEW cluster centers in the initial coordinates space
+    ### (defined as points with maximum density)
+    def get_centers_idx(self):
+#        if self.centers==None:
+        Nframes,Ncoords=self.trj_tot.shape
+        cent_idx=[]
+        for cluster in self.cl_idx:
+            cent_idx.append(np.argmax(self.rho[cluster]))
+        return np.array(cent_idx)
 
 
     def dump_dmat(self,name):
