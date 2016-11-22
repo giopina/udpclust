@@ -50,6 +50,9 @@ contains
     logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
     integer :: Nlist(Nele,maxknn) ! Neighbour list within dc
     integer :: Nstar(Nele)   ! N. of NN taken for comp dens
+
+    integer :: survivors(Nele) ! ###
+    integer :: Nsurv           ! ###
        
     integer,allocatable :: Centers(:) ! Centers of the peaks
     integer,intent(inout) :: Cluster(Nele) ! Cluster ID for the element
@@ -66,6 +69,7 @@ contains
 
     id_err=0
     call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar) ! ### my version
+    call get_survivors() ! ###
     call clustering(id_err)                      ! get Clusters
     call merging(id_err) ! Generate a new matrix without peaks within border error  
     Cluster=Cluster_m
@@ -73,12 +77,23 @@ contains
     return
 
   contains
- 
+    subroutine get_survivors()
+      integer :: i
+      Nsurv=0
+      do i=1,Nele
+         if (.not.filter(i)) then
+            Nsurv=Nsurv+1
+            survivors(Nsurv)=i
+         endif
+      enddo
+    end subroutine get_survivors
+    
     subroutine clustering(id_err)
       implicit none
       integer :: id_err
       !! Local variables
       integer :: i,j,k
+      integer :: ii,jj,kk
       integer :: ig
       integer :: l
       logical :: idmax
@@ -86,6 +101,7 @@ contains
       real*8,allocatable :: Rho_copy(:)
       integer,allocatable :: iRho(:)
       integer,allocatable :: eb(:,:)    ! Border elements
+      !integer,allocatable :: survivors(:)  ! ###
       real*8 :: d,dmin
       logical :: extend
       !!
@@ -97,30 +113,56 @@ contains
       ! Here I compute the probability of having density rho, g_i
       allocate (Rho_prob(Nele))
       Rho_prob(:)=0.
-      do i=1,Nele
-         if (.not.filter(i)) then
-            do j=1,Nele
-               if (.not.filter(j)) then
-                  Rho_prob(i)=Rho_prob(i)-log(1.d0+exp(2.*(Rho(j)-Rho(i))/sqrt(Rho_err(i)**2+Rho_err(j)**2)))
-               endif
-            enddo
-         endif
+      ! ### change this with survivors
+      !do i=1,Nele
+      !   if (.not.filter(i)) then
+      !      do j=1,Nele
+      !         if (.not.filter(j)) then
+      !            Rho_prob(i)=Rho_prob(i)-log(1.d0+exp(2.*(Rho(j)-Rho(i))/sqrt(Rho_err(i)**2+Rho_err(j)**2)))
+      !         endif
+      !      enddo
+      !   endif
+      !enddo
+      do ii=1,Nsurv
+         i=survivors(ii)
+         do jj=1,Nsurv
+            j=survivors(jj)
+            Rho_prob(i)=Rho_prob(i)-log(1.d0+exp(2.*(Rho(j)-Rho(i))/sqrt(Rho_err(i)**2+Rho_err(j)**2)))
+         enddo
       enddo
+      ! ###
       ! Now I'm getting the clusters
-      do i=1,Nele
-         if (.not.filter(i)) then
-            idmax=.true.
-            j=1
-            do while (idmax .and. (j.le.Nstar(i)))
-               if ((Rho_prob(i).le.Rho_prob(Nlist(i,j))).and.(.not.filter(Nlist(i,j))))  idmax=.false.
-               j=j+1
-            enddo
-            if (idmax) then
-               Nclus=Nclus+1
-               Cluster(i)=Nclus
-            endif
+      ! ### change this with survivors
+      !do i=1,Nele
+      !   if (.not.filter(i)) then
+      !      idmax=.true.
+      !      j=1
+      !      do while (idmax .and. (j.le.Nstar(i)))
+      !         if ((Rho_prob(i).le.Rho_prob(Nlist(i,j))).and.(.not.filter(Nlist(i,j))))  idmax=.false.
+      !         j=j+1
+      !      enddo
+      !      if (idmax) then
+      !         Nclus=Nclus+1
+      !         Cluster(i)=Nclus
+      !      endif
+      !   endif
+      !enddo
+      do ii=1,Nsurv
+         i=survivors(ii)
+         idmax=.true.
+         j=1
+         do while (idmax .and. (j.le.Nstar(i)))
+            if ((Rho_prob(i).le.Rho_prob(Nlist(i,j))).and.(.not.filter(Nlist(i,j))))  idmax=.false. ! ### I could probably also change this
+            j=j+1
+         enddo
+         if (idmax) then
+            Nclus=Nclus+1
+            Cluster(i)=Nclus
          endif
       enddo
+      ! ###
+
+
       allocate (Centers(Nclus))
       do i=1,Nele
          if (Cluster(i).ne.0) then
@@ -141,6 +183,7 @@ contains
          deallocate (Rho_copy)
 
          ! Assign not filtered
+         ! ### change it with survivors
          do i=1,Nele
             ig=-1
             j=iRho(i)
@@ -163,6 +206,31 @@ contains
                endif
             endif
          enddo
+         !do ii=1,Nsurv
+         !   i=survivors(ii)
+         !   ig=-1
+         !   j=iRho(i)
+         !   !if (.not.filter(j).and.Cluster(j).eq.0) then
+         !   if (Cluster(j).eq.0) then
+         !      dmin=9.9E29
+         !      do k=1,i-1 ! ### qui devo pensare a come farlo bene con survivors
+         !         l=iRho(k) ! ### questa cosa mi da davvero un vantaggio?
+         !         if (.not.filter(l)) then
+         !            if (gDist(j,l).le.dmin) then
+         !               ig=l
+         !               dmin=gDist(j,l) !
+         !            endif
+         !         endif
+         !      enddo
+         !      if (ig.eq.-1) then
+         !         id_err=12
+         !         RETURN
+         !      else
+         !         Cluster(j)=Cluster(ig)
+         !      endif
+         !   endif
+         !enddo
+         !###
 
          ! Assign filtered to the same Cluster as its nearest unfiltered neighbour
          ! what happens if all neighbors are filtered
