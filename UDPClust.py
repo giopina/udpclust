@@ -9,7 +9,8 @@ class cluster_UDP:
     #### this should be the constructor
 #    def __init__(self,dmat,dim,trj_tot,stride=1,merge=True):
     def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0):
-        
+        "Constructor of the class cluster_UDP"
+
         #### store internal variables
 #        self.merge=merge # set to False if you don't want to merge non-significative clusters THIS DOES NOT WORK
 #        self.merge=True # set to False if you don't want to merge non-significative clusters
@@ -92,7 +93,8 @@ class cluster_UDP:
 
     def __errorcheck(self):
         if self.id_err!=0:
-            if self.id_err==1 : print "Select case error for distance type" #obsolete?
+            #TODO: change print into sys.exit( ... )
+            if self.id_err==1 :   print "Select case error for distance type" #obsolete?
             elif self.id_err==2 : print "Error opening distance file"#obsolete?
             elif self.id_err==3 : print "Error opening coordinates file"#obsolete?
             elif self.id_err==4 : print "Error on distance file format" #obsolete?
@@ -103,6 +105,8 @@ class cluster_UDP:
             elif self.id_err==9 : print "Just one cluster"
             elif self.id_err==10: print "Just one cluster after merging"
             elif self.id_err==11: print "Error in assignation"
+            elif self.id_err==12: print "Error in clustering: ig undefined; this may mean that there's a maximum in g_i not identified as a cluster center. Maybe you have identical points."
+            elif self.id_err==13: print "Error in distance: There are identical points!"
             else : print "unrecognized error"
             return True
         else: return False

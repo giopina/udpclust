@@ -65,7 +65,6 @@ contains
     integer :: Nclus_m                  ! Number of Cluster merged
 
     id_err=0
-    
     call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar) ! ### my version
     call clustering(id_err)                      ! get Clusters
     call merging(id_err) ! Generate a new matrix without peaks within border error  
@@ -134,17 +133,16 @@ contains
       !   id_err=9
       !   RETURN
       !endif
-
          ! copy of rho (not efficient, but clarifies the code) ### !!!
          allocate (Rho_copy(Nele))
          allocate (iRho(Nele))
          Rho_copy(:)=-Rho_prob(:)
-
          call HPSORT(Nele,Rho_copy,iRho) ! iRho contains the order in density (iRho(1) is the element with highest Rho...)
          deallocate (Rho_copy)
 
          ! Assign not filtered
          do i=1,Nele
+            ig=-1
             j=iRho(i)
             if (.not.filter(j).and.Cluster(j).eq.0) then
                dmin=9.9E29
@@ -157,14 +155,19 @@ contains
                      endif
                   endif
                enddo
-               Cluster(j)=Cluster(ig)
+               if (ig.eq.-1) then
+                  id_err=12
+                  RETURN
+               else
+                  Cluster(j)=Cluster(ig)
+               endif
             endif
          enddo
-
 
          ! Assign filtered to the same Cluster as its nearest unfiltered neighbour
          ! what happens if all neighbors are filtered
          do i=1,Nele
+            ig=-1
             if (Cluster(i).eq.0) then
                dmin=9.9d99
                do j=1,Nstar(i) ! find the min d in not filt elements
@@ -188,12 +191,14 @@ contains
                      endif
                   enddo
                endif
-
+               if (ig.eq.-1) then
+                  id_err=12
+                  RETURN
+               endif
                Cluster(i)=Cluster(ig)
             endif
          enddo
          ! find border densities
-
          allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
          Bord(:,:)=-9.9D99
          Bord_err(:,:)=0.
@@ -240,6 +245,7 @@ contains
          ! ######################3
          ! ### my version
          do i=1,Nele ! si puo' fare il loop solo su i filter?
+            ig=-1
             if (filter(i)) CYCLE
             ! ### non so farlo bene...
             !do j=1,Nstar(i)
@@ -261,6 +267,10 @@ contains
             enddo
             if (dmin.gt.9.8d99) CYCLE
             extend=.true.
+            if (ig.eq.-1) then
+               id_err=12
+               RETURN
+            endif
             do k=1,Nstar(i)
                if (cluster(Nlist(i,k)).eq.cluster(i)) then
                   if (gDist(Nlist(i,k),ig).lt.dmin) then 
@@ -577,12 +587,16 @@ contains
     allocate (Vols(Nele))
     allocate (iVols(Nele))
 
-    write(12345,*) Nele
+!    write(12345,*) Nele
 !    open(22,file='cacca.dat')
     do i=1,Nele
        Vols(:)=9.9E9
        do j=1,Nele
           if (i.ne.j) then
+             if(i.eq.j) then
+                id_err=13
+                RETURN
+             endif
              Vols(j)=prefactor*(gDist(i,j))**dimint
           endif
        enddo
