@@ -69,7 +69,6 @@ contains
 
     id_err=0
     call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar) ! ### my version
-    call get_survivors() ! ###
     call clustering(id_err)                      ! get Clusters
     call merging(id_err) ! Generate a new matrix without peaks within border error  
     Cluster=Cluster_m
@@ -99,7 +98,7 @@ contains
       logical :: idmax
       real*8,allocatable :: Rho_prob(:)   ! Probability of having maximum Rho
       real*8,allocatable :: Rho_copy(:)
-      integer,allocatable :: iRho(:)
+      integer,allocatable :: iRho(:),ordRho(:)
       integer,allocatable :: eb(:,:)    ! Border elements
       !integer,allocatable :: survivors(:)  ! ###
       real*8 :: d,dmin
@@ -113,6 +112,7 @@ contains
       ! Here I compute the probability of having density rho, g_i
       allocate (Rho_prob(Nele))
       Rho_prob(:)=0.
+      call get_survivors() ! ###
       ! ### change this with survivors
       !do i=1,Nele
       !   if (.not.filter(i)) then
@@ -130,6 +130,18 @@ contains
             Rho_prob(i)=Rho_prob(i)-log(1.d0+exp(2.*(Rho(j)-Rho(i))/sqrt(Rho_err(i)**2+Rho_err(j)**2)))
          enddo
       enddo
+
+      ! copy of rho (not efficient, but clarifies the code) ### !!!
+      allocate (Rho_copy(Nele))
+      allocate (iRho(Nele))
+      Rho_copy(:)=-Rho_prob(:)
+      call HPSORT(Nele,Rho_copy,iRho) ! iRho contains the order in density (iRho(1) is the element with highest Rho...)
+      deallocate (Rho_copy)      
+      allocate (ordRho(Nele))
+      do i=1,Nele
+         ordRho(iRho(i))=i                 ! ordRho is the complementary of iRho. Given an element, ordRho returns its order in density
+      enddo
+
       ! ###
       ! Now I'm getting the clusters
       ! ### change this with survivors
@@ -152,7 +164,7 @@ contains
          idmax=.true.
          j=1
          do while (idmax .and. (j.le.Nstar(i)))
-            if ((Rho_prob(i).le.Rho_prob(Nlist(i,j))).and.(.not.filter(Nlist(i,j))))  idmax=.false. ! ### I could probably also change this
+            if ((ordRho(i).gt.ordRho(Nlist(i,j))).and.(.not.filter(Nlist(i,j))))  idmax=.false. ! ### I could probably also change this
             j=j+1
          enddo
          if (idmax) then
@@ -175,20 +187,13 @@ contains
       !   id_err=9
       !   RETURN
       !endif
-         ! copy of rho (not efficient, but clarifies the code) ### !!!
-         allocate (Rho_copy(Nele))
-         allocate (iRho(Nele))
-         Rho_copy(:)=-Rho_prob(:)
-         call HPSORT(Nele,Rho_copy,iRho) ! iRho contains the order in density (iRho(1) is the element with highest Rho...)
-         deallocate (Rho_copy)
-
          ! Assign not filtered
          ! ### change it with survivors
          do i=1,Nele
             ig=-1
             j=iRho(i)
             if (.not.filter(j).and.Cluster(j).eq.0) then
-               dmin=9.9E29
+               dmin=9.9d99
                do k=1,i-1
                   l=iRho(k) ! ### questa cosa mi da davvero un vantaggio?
                   if (.not.filter(l)) then
@@ -209,7 +214,8 @@ contains
          !do ii=1,Nsurv
          !   i=survivors(ii)
          !   ig=-1
-         !   j=iRho(i)
+         !   j=iRho(ordRho(i))
+         !   write(*,*) ii,i,ordRho(i),j,cluster(j)
          !   !if (.not.filter(j).and.Cluster(j).eq.0) then
          !   if (Cluster(j).eq.0) then
          !      dmin=9.9E29
@@ -374,6 +380,7 @@ contains
 
          deallocate (Rho_prob)
          deallocate (iRho)
+         deallocate(ordRho)
          ! Info per graph pre automatic merging
          allocate (cent(Nclus))
          allocate (cent_err(Nclus))

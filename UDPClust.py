@@ -3,23 +3,19 @@ import numpy as np
 from scipy.spatial import distance
 import UDP_modules
 
-class cluster_UDP:
-    
+class cluster_UDP:    
    
     #### this should be the constructor
 #    def __init__(self,dmat,dim,trj_tot,stride=1,merge=True):
-    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0):
+    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0):
         "Constructor of the class cluster_UDP"
 
         #### store internal variables
-#        self.merge=merge # set to False if you don't want to merge non-significative clusters THIS DOES NOT WORK
-#        self.merge=True # set to False if you don't want to merge non-significative clusters
         self.coring=coring
         self.sensibility=sens
         ### compute the distance matrix if not provided ( in this way it should be deleted at the end of the function. suggested to avoid large memory consumption)
         if dmat==None:
             dmat=distance.pdist(trj_tot)
-        # !!! ADD A CHECK FOR THE DIMENSIONS OF DMAT AND TRJTOT!!!
         else:
             assert dmat.shape[0]==trj_tot.shape[0],"trj_tot and distance matrix shapes do not match"
         self.trj_tot=trj_tot #trajectory on thich I made the clustering (a subset of the total data set, usually)
@@ -31,6 +27,7 @@ class cluster_UDP:
         self.ND=len(dmat)
         self.Npoints=len(trj_tot)
         self.dim=dim
+        self.delta=delta
 
 ### dump the distance matrix if needed for dimensionality calculation
         if dump_dmat:
@@ -51,7 +48,6 @@ class cluster_UDP:
             stringa=''
             fh.close()
 
-
         ### perform the clustering
         self.__clustering(dmat)
         ### check for errors
@@ -65,7 +61,7 @@ class cluster_UDP:
             self.rho[i]=self.rho[f0[imin]]
         if self.coring:
             ### find core sets
-            self.__find_core_sets()
+            self.__find_core_sets(R_CORE=np.exp(-self.delta))
         else:
             self.__find_core_sets(R_CORE=1.)
 
