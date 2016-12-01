@@ -172,14 +172,18 @@ def locknn(dmat,Nele,dimint,maxknn=496):
 #        if i%(Nele/50)==0: print i
         Vols=np.ones(Nele)*9.9e99 #float
         t_start=time.time()
+        ### THE SLOW PART IS ACTUALLY HERE ###
         for j in range(Nele):
             if i!=j:
                 #Vols[j]=prefactor*dmat[c_idx(i,j)]**dimint
                 Vols[j]=dmat[c_idx(i,j)]
+        #Vols=distance.squareform(dmat)[:,i] ### this looks even slower
+        ######################################
+        t1+=time.time()-t_start
         iVols=np.argsort(Vols)
         #print 'primo loop'
         Nlist[i,:]=iVols[:maxknn]
-        t1+=time.time()-t_start
+        #t1+=time.time()-t_start
 
         t_start=time.time()
         # get nstar
