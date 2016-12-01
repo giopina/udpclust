@@ -10,6 +10,7 @@
 ### SISSA, Trieste, Italy, 2016                                     ###
 #######################################################################
 
+import time
 import sys
 import numpy as np
 from scipy.spatial import distance
@@ -125,9 +126,13 @@ class cluster_UDP:
         self.trj_sub=trj_tot[::self.stride]
         assert self.trj_sub.shape[0]>1, 'ERROR: stride is too large, the subset contains only one point'
 
+#        assert self.trj_sub.shape[0]<20000, 'WARNING: the size of the distance matrix will be large. Maybe you should decrease the stride'
+        if self.trj_sub.shape[0]>20000: print 'WARNING: the size of the distance matrix will be large. Maybe you should decrease the stride'
+
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
         if dmat==None:
+            print 'Computing distances'
             dmat=distance.pdist(self.trj_sub)
         else:
             assert dmat.shape[0]==self.trj_sub.shape[0],"ERROR: trj_tot[::stride] and distance matrix shapes do not match"
@@ -179,12 +184,22 @@ class cluster_UDP:
         self.id_err=np.array(0,dtype=np.int32)
         #
         # 2) call fortran subroutine
+        print 'fortran clustering'
+        t0=time.time()
         UDP_modules.dp_clustering.dp_advance\
             (dmat,self.frame_cl_sub,self.rho_sub,self.filt_sub,self.dim,self.id_err,self.sensibility)
+        print 'Done!',
+        print time.time()-t0,
+        print 's; now post-processing'
         # 3) post processing of output
         self.frame_cl_sub-=1 #back to python enumeration in arrays
 
-### I do this later with all the points!
+        ### I do this later with all the points!
+        self.cl_idx_sub=[ [] for i in range(np.max(self.frame_cl_sub)+1)] #frames for each cluster
+        i=0
+        for i_cl in self.frame_cl_sub:
+            self.cl_idx_sub[i_cl].append(i)
+            i+=1
 #        self.cl_idx=[ [] for i in range(np.max(self.frame_cl)+1)] #frames for each cluster
 #        i=0
 #        for i_cl in self.frame_cl:
@@ -208,10 +223,11 @@ class cluster_UDP:
         #   filter value for each frame in trj_tot (either 0 or 1)
         self.filt=np.zeros(self.Ntot,dtype=np.int32)
         #   frames of trj_tot for each cluster
-        self.cl_idx=[ [] for i in range(np.max(self.frame_cl)+1)] 
+        self.cl_idx=[ [] for i in range(np.max(self.frame_cl_sub)+1)] 
 
         ### if stride==1 don't recompute distances:
         if self.stride==1:
+            print 'assign strided points'
             self.frame_cl=self.frame_cl_sub
         #   density for each frame in trj_tot
             self.rho=self.rho_sub
@@ -225,21 +241,23 @@ class cluster_UDP:
             self.n_clusters=len(self.cl_idx)
             return
         ###
-
+        
         ### this part may take some time
-        for iframe in range(Ntot):
-            frame=trj_tot[iframe]
-            #                dists=distance.cdist(self.trj_tot,np.array([frame]))[:,0]
-            sqdists=distance.cdist(self.trj_tot,np.array([frame]),'sqeuclidean')[:,0] # should be faster
+        t0=time.time()
+        for iframe in range(self.Ntot):
+            frame=self.trj_tot[iframe] # 
+            #                dists=distance.cdist(self.trj_sub,np.array([frame]))[:,0]
+            sqdists=distance.cdist(self.trj_sub,np.array([frame]),'sqeuclidean')[:,0] # should be faster
             idx=np.argmin(sqdists)
             self.frame_cl[iframe]=self.frame_cl_sub[idx]
             self.rho[iframe]=self.rho_sub[idx]
             self.filt[iframe]=self.filt_sub[idx]
             icl=self.frame_cl_sub[idx]
-            cl_idx[icl].append(iframe)
+            self.cl_idx[icl].append(iframe)
         ###
         self.n_clusters=len(self.cl_idx)
-
+        print time.time()-t0
+        print "finished clustering"
         return 
     #END FUNCTION __CLUSTERING
 
@@ -270,8 +288,10 @@ class cluster_UDP:
         print " Identifying core sets using a cutoff of %s with respect to the peak density" % R_CORE
         self.cores_idx=[  [] for i in range(len(self.cl_idx))]
         k_cl=0
+        #for cluster in self.cl_idx_sub:
+        #    rhomax=np.max(self.rho_sub[cluster]) #search max in rho_sub instead of rho, to save time
         for cluster in self.cl_idx:
-            rhomax=np.max(self.rho_sub[cluster]) #search max in rho_sub instead of rho, to save time
+            rhomax=np.max(self.rho[cluster]) #search max in rho_sub instead of rho, to save time
             for ipoint in cluster:
                 tmp_rho=self.rho[ipoint]
                 if tmp_rho/rhomax>R_CORE:

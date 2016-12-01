@@ -10,21 +10,67 @@
 ### Written by Giovanni Pinamonti, SISSA, Trieste, 2016
 ### ---------------------------------------------
 
-import numpy as np
+###TODO: fai gli import con try:
+#import numpy as np
 import sys
 
-#import cPickle as pickle
+### copied from baRNAba
+if sys.version_info[0] != 2 or sys.version_info[1] != 7:
+    sys.stderr.write('# Python 2.7 is required. Aborting \n')
+    sys.exit(1)
+else:
+    import argparse
+
 import UDPClust as dp
-fname=sys.argv[1]
-dim=int(sys.argv[2])
-traj=[]
-for line in open(fname,'r'):
-    traj.append([float(x) for x in line.split()])
-traj=np.array(traj)
-print 'shape of input array =',traj.shape
-cl=dp.cluster_UDP(dim,traj)
-print 'Clustering done'
-#fout=open(sys.argv[3],'wb')
-#pickle.dump(cl,fout,-1)
-#fout.close()
-cl.dump_cl(sys.argv[3])
+
+def parse():
+    parser=argparse.ArgumentParser(description='Unsupervised Density Peak Clustering\nplease cite dErrico et al., 2016')
+    parser.add_argument("-f", dest="fname",help="input file name",default=None,required=True)
+
+    parser.add_argument("--dim", dest="dim",help="intrinsic dimension of data set",required=True,default=None,type=int)
+
+    parser.add_argument("--stride", dest="stride",help="stride to use to perform clustering. The rest of the data will be assigned afterwards",required=False,default=1,type=int)
+
+    parser.add_argument("--delta", dest="delta",help="core set definition parameter",required=False,default=1.0,type=float)
+
+    parser.add_argument("--sens", dest="sens",help="sensibility parameter in the clustering algorithm. Increase it to merge more clusters.",required=False,default=1.0,type=float)
+
+    parser.add_argument("--coring", dest="coring",help="identify core sets",action="store_true",required=False)
+
+    parser.add_argument("-o",dest="oname",help="output file name", required=False,default=None)
+
+    args=parser.parse_args()
+
+    return args
+
+def main():
+    ### copiato da baRNAba
+    # check at startup!
+    try:
+        import numpy as np
+    except ImportError:
+        sys.stderr.write('# Numpy is not installed \n')
+        sys.exit(1)
+    ###
+    
+    args=parse()
+    if args.oname==None:
+        args.oname=args.fname
+
+    traj=[]
+    for line in open(args.fname,'r'):
+        traj.append([float(x) for x in line.split()])
+    traj=np.array(traj)
+    print 'shape of input array =',traj.shape
+    cl=dp.cluster_UDP(args.dim,traj,stride=args.stride,coring=args.coring,delta=args.delta,sens=args.sens)
+    print 'Clustering done'
+    #fout=open(sys.argv[3],'wb')
+    #pickle.dump(cl,fout,-1)
+    #fout.close()
+    cl.dump_cl(args.oname)
+
+####################### MAIN ########################
+
+if __name__ == "__main__":
+    main()
+
