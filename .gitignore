@@ -5,3 +5,4 @@ test/report.txt
 test/out*.dat
 test/log
 .nfs*
+./#*#
