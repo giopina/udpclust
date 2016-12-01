@@ -7,7 +7,7 @@ time ./test.sh >log 2>err
 
 rm -f out2-*.dat > /dev/null 2>/dev/null
 echo "Running the density scripts..."
-time ./test2.sh >log 2>err
+time ./test2.sh >>log 2>>err
 
 echo "Done."
 
