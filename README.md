@@ -15,23 +15,19 @@ in the working directory
       import UDPClust as dp
       clustering=dp.cluster_UDP(dim,trj_tot)
 
-
 ### Input variables: ###
     dim = dimensionality of the dataset
     trj_tot = trajectory to perform the clustering (a subset of the total data set, usually)
           should be a numpy array shaped (N.frames)x(N.coords)
 
-
-##### TO DO: #####
-1) Add the option to feed directly a distance matrix
-2) Add stride and automatic assignment
-
+Optional:
+	sens = sensibility parameter for cluster merging (default=1.0)
+	delta = parameter for core set definition (default=1.0)
+	stride = stride to use for the clustering. The rest of the points will be assigned later to the same cluster of the closest point
 
 ##### Note: #####
 the distance matrix calculation and storage is unpractical for N. points >10^4
-if that happen it is recommended to use a subset of the total data set (trj_tot)
-to perform the clustering and subsequently use the method assign(trajs) to assign
-all the dataset to the clusters
+if that happen it is recommended to use a stride>1
 
 
 ### OUTPUT VARIABLES ###
@@ -48,7 +44,7 @@ Other internal variables are
 
 
 ### Other functions ###
-     clustering.assign(trajs) # Assigns the frames from a list of trajectories to the clusters identified before
+     clustering.get_core_trajs() # return the discrete trajectories using the coring approach of Hummer and Buchete
 
      clustering.get_centers()     #Computes the average position of each cluster
 
