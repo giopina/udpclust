@@ -247,8 +247,10 @@ class cluster_UDP:
         for iframe in range(self.Ntot):
             frame=self.trj_tot[iframe] # 
             #                dists=distance.cdist(self.trj_sub,np.array([frame]))[:,0]
+            ### TODO: make this more efficient (fortran? c++? gpu?)
             sqdists=distance.cdist(self.trj_sub,np.array([frame]),'sqeuclidean')[:,0] # should be faster
             idx=np.argmin(sqdists)
+            ##################
             self.frame_cl[iframe]=self.frame_cl_sub[idx]
             self.rho[iframe]=self.rho_sub[idx]
             self.filt[iframe]=self.filt_sub[idx]
