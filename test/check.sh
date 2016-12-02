@@ -4,7 +4,8 @@
 rm -f out-*.dat > /dev/null 2>/dev/null
 echo "Running the scripts..."
 time ./test.sh >log 2>err
-time ./test-assign.sh >assign.log 2>assign.err
+time ./test-assign.sh >>log 2>>err
+time ./test-its.sh >>log 2>>err
 
 echo "Done."
 
