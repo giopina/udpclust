@@ -107,7 +107,7 @@ class cluster_UDP:
         ###       that I'm storing anyway rho, filt, cl_idx, frame_cl
         if isinstance(trj_tot,list):
             try:
-                self.trj_tot=np.concatentate(trj_tot)
+                self.trj_tot=np.concatenate(trj_tot)
             except:
                 sys.exit('ERROR: problem in the input data set; shape of the arrays in the trj_tot list is wrong')
             self.trj_shape=[ttt.shape for ttt in trj_tot]
@@ -123,7 +123,7 @@ class cluster_UDP:
         assert stride>0, "ERROR: negative stride not supported!"
         assert isinstance(stride,int), "ERROR: stride must be a positive integer"
         self.stride=stride
-        self.trj_sub=trj_tot[::self.stride]
+        self.trj_sub=self.trj_tot[::self.stride]
         assert self.trj_sub.shape[0]>1, 'ERROR: stride is too large, the subset contains only one point'
 
 #        assert self.trj_sub.shape[0]<20000, 'WARNING: the size of the distance matrix will be large. Maybe you should decrease the stride'
@@ -302,7 +302,7 @@ class cluster_UDP:
 
 
     ### CTRAJS 
-    def coring(self,tica_traj=None):
+    def get_core_traj(self,tica_traj=None):
         """Return the core-set discrete trajectory, defined with the "coring" approach (Buchete and Hummer, 2008).
            The idea is to assign each frame which is NOT in a core set, to the last core set visited.
 
@@ -311,12 +311,12 @@ class cluster_UDP:
         """
         #        if self.ctrajs==None: ### Could I really need this sometimes?
         ctrajs=[]
-        if isinstance(traj_shape,list):
+        if isinstance(self.trj_shape,list):
             idx=0 # this counts the idx in the concatenated list self.trj_tot 
-            for itraj in range(len(traj_shape)):
+            for itraj in range(len(self.trj_shape)):
                 old_icl=len(self.cores_idx) # fake microstate, where u start all the trj and never enter again
                 ct=[]
-                for iframe in range(traj_shape[itraj][0]):
+                for iframe in range(self.trj_shape[itraj][0]):
                     icl=self.frame_cl[idx]
                     if idx not in self.cores_idx[icl]:
                         icl=old_icl
@@ -325,9 +325,9 @@ class cluster_UDP:
                     idx+=1
                 ctrajs.append(np.array(ct))
 
-        elif isinstance(traj_shape,np.ndarray):
+        elif isinstance(self.trj_shape,np.ndarray):
             old_icl=len(self.cores_idx) # fake microstate, where u start all the trj and never enter again
-            for iframe in range(traj_shape[itraj][0]):
+            for iframe in range(self.trj_shape[itraj][0]):
                 icl=self.frame_cl[iframe]
                 if iframe not in self.cores_idx[icl]:
                     icl=old_icl
@@ -343,7 +343,7 @@ class cluster_UDP:
     ### CTRAJS 
     ### Here it assigns frames from a list of trajectories to the clusters.
     def assign(self,tica_traj):
-        """ Deprecated, you should use stride>1 and then coring()"""
+        """ Deprecated, you should use stride>1 and then get_core_traj()"""
         # this part takes some time
 #        if self.ctrajs==None:
         ctrajs=[]
@@ -368,7 +368,7 @@ class cluster_UDP:
 
     ### CTRAJS 
     def assign_w_rev(self,tica_traj):
-        """ Deprecated, you should use stride>1 and then coring()"""
+        """ Deprecated, you should use stride>1 and then get_core_traj()"""
         # this part takes some time
         ### assign both forward and reverse trajectories
 #        if self.ctrajs==None:
