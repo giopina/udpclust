@@ -244,17 +244,25 @@ class cluster_UDP:
         
         ### this part may take some time
         t0=time.time()
-        for iframe in range(self.Ntot):
-            frame=self.trj_tot[iframe] # 
-            #                dists=distance.cdist(self.trj_sub,np.array([frame]))[:,0]
-            ### TODO: make this more efficient (fortran? c++? gpu?)
-            sqdists=distance.cdist(self.trj_sub,np.array([frame]),'sqeuclidean')[:,0] # should be faster
-            idx=np.argmin(sqdists)
+
+
+        lb=self.trj_sub.shape[0]/2
+        Nb=self.Ntot/lb
+        for ib in range(Nb+1):
+            ### TODO: make this more efficient (fortran? c++? gpu?)            
+            frames=self.trj_tot[ib*lb:(ib+1)*lb] #                                                                               
+            #frame=self.trj_tot[iframe] # 
+            #dists=distance.cdist(self.trj_sub,np.array([frame]))[:,0]
+            #sqdists=distance.cdist(self.trj_sub,np.array([frame]),'sqeuclidean')[:,0] # should be faster
+            sqdists=distance.cdist(self.trj_sub,frames,'sqeuclidean')               
+            idxs=np.argmin(sqdists,axis=0)
+            #idx=np.argmin(sqdists)
+            self.frame_cl[ib*lb:(ib+1)*lb]=self.frame_cl_sub[idxs]
+            self.rho[ib*lb:(ib+1)*lb]=self.rho_sub[idxs]
+            self.filt[ib*lb:(ib+1)*lb]=self.filt_sub[idxs]
             ##################
-            self.frame_cl[iframe]=self.frame_cl_sub[idx]
-            self.rho[iframe]=self.rho_sub[idx]
-            self.filt[iframe]=self.filt_sub[idx]
-            icl=self.frame_cl_sub[idx]
+        for iframe in range(self.Ntot):
+            icl=self.frame_cl[iframe]
             self.cl_idx[icl].append(iframe)
         ###
         self.n_clusters=len(self.cl_idx)
