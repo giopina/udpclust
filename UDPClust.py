@@ -14,6 +14,7 @@ import time
 import sys
 import numpy as np
 from scipy.spatial import distance
+from scipy.spatial import cKDTree
 import UDP_modules
 
 class cluster_UDP:    
@@ -21,6 +22,11 @@ class cluster_UDP:
     performs the unsupervised density peak clustering
     as described in   
     D'Errico, Facco, Laio, Rodriguez, pending pubblication, 2016
+
+    requires:
+      numpy
+      scipy
+      cython
 
     internal variables:
 
@@ -257,17 +263,24 @@ class cluster_UDP:
         t0=time.time()
 
 
-        lb=self.trj_sub.shape[0]/2
+        tree=cKDTree(self.trj_sub)
+        lb=max(self.trj_sub.shape[0]/4,1) ### TODO check what's a smart optimal value for the denominator
+        print lb
         Nb=self.Ntot/lb
         for ib in range(Nb+1):
             ### TODO: make this more efficient (fortran? c++? gpu?)            
             frames=self.trj_tot[ib*lb:(ib+1)*lb] #                                                                               
             #frame=self.trj_tot[iframe] # 
+            ###
             #dists=distance.cdist(self.trj_sub,np.array([frame]))[:,0]
             #sqdists=distance.cdist(self.trj_sub,np.array([frame]),'sqeuclidean')[:,0] # should be faster
-            sqdists=distance.cdist(self.trj_sub,frames,'sqeuclidean')               
-            idxs=np.argmin(sqdists,axis=0)
             #idx=np.argmin(sqdists)
+            ###
+#            sqdists=distance.cdist(self.trj_sub,frames,'sqeuclidean') # should be even faster
+#            idxs=np.argmin(sqdists,axis=0)
+            
+            idxs=tree.query(frames)[1] # this is freaking fast
+
             self.frame_cl[ib*lb:(ib+1)*lb]=self.frame_cl_sub[idxs]
             self.rho[ib*lb:(ib+1)*lb]=self.rho_sub[idxs]
             self.filt[ib*lb:(ib+1)*lb]=self.filt_sub[idxs]
