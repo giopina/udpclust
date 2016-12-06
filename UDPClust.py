@@ -161,14 +161,17 @@ class cluster_UDP:
 
         ### perform the clustering
         self.__clustering(dmat)
+        del dmat
+        self.__postprocessing()
         ### check for errors
         assert not self.__errorcheck(), 'ERROR: Problem in clustering'
 
         ### core sets
         if self.coring:
-            self.__find_core_sets(R_CORE=np.exp(-self.delta))
-        else:
-            self.__find_core_sets(R_CORE=1.)
+#            self.find_core_sets(R_CORE=np.exp(-self.delta))
+            self.find_core_sets(delta=self.delta)
+#        else:
+#            self.find_core_sets(R_CORE=1.)
 
 
     def __clustering(self,dmat):
@@ -188,11 +191,16 @@ class cluster_UDP:
         t0=time.time()
         UDP_modules.dp_clustering.dp_advance\
             (dmat,self.frame_cl_sub,self.rho_sub,self.filt_sub,self.dim,self.id_err,self.sensibility)
+#        del dmat ### I'm not going to use it again. So delete it to make space for assignment
         print 'Done!',
         print time.time()-t0,
         print 's; now post-processing'
+
+
+    def __postprocessing(self):
         # 3) post processing of output
         self.frame_cl_sub-=1 #back to python enumeration in arrays
+        self.rho_sub[self.filt_sub==1]=0 ### set to zero the densities of the filtered points
 
         ### I do this later with all the points!
         self.cl_idx_sub=[ [] for i in range(np.max(self.frame_cl_sub)+1)] #frames for each cluster
@@ -200,11 +208,14 @@ class cluster_UDP:
         for i_cl in self.frame_cl_sub:
             self.cl_idx_sub[i_cl].append(i)
             i+=1
-#        self.cl_idx=[ [] for i in range(np.max(self.frame_cl)+1)] #frames for each cluster
-#        i=0
-#        for i_cl in self.frame_cl:
-#            self.cl_idx[i_cl].append(i)
-#            i+=1
+            
+        self.centers_idx=[]
+        self.centers_rho=[]
+        for cluster in self.cl_idx_sub:
+            self.centers_idx.append(np.argmax(self.rho_sub[cluster]))
+            self.centers_rho.append(np.max(self.rho_sub[cluster]))
+        self.centers_idx=np.array(self.centers_idx)*self.stride ### TODO check if this is correct!
+        self.centers_rho=np.array(self.centers_rho)
 
         # 4) assign densities of nearest-neighbours to the filtered points
         f1=np.where(self.filt_sub==1)[0]
@@ -293,15 +304,20 @@ class cluster_UDP:
 
         
     ### CORE SETS IDENTIFICATION
-    def __find_core_sets(self,R_CORE=np.exp(-1)):
+    def find_core_sets(self,delta=None):
+        """Identifies the core set of each cluster and store the indexes of the points
+        belonging to it in the variable cores_idx[i_cluster].
+        Call it with delta=value to redefine core sets after the clustering is completed.
+        """
 #        print " Questo e' il cutoff sul rapporto della densita' core con il picco:",R_CORE
+        if delta!=None:
+            self.delta=delta
+        R_CORE=np.exp(-self.delta)
         print " Identifying core sets using a cutoff of %s with respect to the peak density" % R_CORE
         self.cores_idx=[  [] for i in range(len(self.cl_idx))]
         k_cl=0
-        #for cluster in self.cl_idx_sub:
-        #    rhomax=np.max(self.rho_sub[cluster]) #search max in rho_sub instead of rho, to save time
         for cluster in self.cl_idx:
-            rhomax=np.max(self.rho[cluster]) #search max in rho_sub instead of rho, to save time
+            rhomax=self.centers_rho[k_cl]
             for ipoint in cluster:
                 tmp_rho=self.rho[ipoint]
                 if tmp_rho/rhomax>R_CORE:
@@ -319,6 +335,7 @@ class cluster_UDP:
         """
         #        if self.ctrajs==None: ### Could I really need this sometimes?
         ctrajs=[]
+        R_CORE=np.exp(-self.delta)
         if isinstance(self.trj_shape,list):
             idx=0 # this counts the idx in the concatenated list self.trj_tot 
             for itraj in range(len(self.trj_shape)):
@@ -326,10 +343,22 @@ class cluster_UDP:
                 ct=[]
                 for iframe in range(self.trj_shape[itraj][0]):
                     icl=self.frame_cl[idx]
-                    if idx not in self.cores_idx[icl]:
-                        icl=old_icl
-                    ct.append(icl)
-                    old_icl=icl
+                    #if idx not in self.cores_idx[icl]:
+                    #    icl=old_icl
+                    #ct.append(icl)
+                    #old_icl=icl
+                    ###
+                    #if idx in self.cores_idx[icl]: ### this check takes a lot of time!
+                    #    old_icl=icl
+                    ### this is faster
+                    #cluster=self.cl_idx[icl]
+                    #rhomax=np.max(self.rho[cluster]) #store rho of the cluster centers. It will be faster AND more precise
+                    rhomax=self.centers_rho[icl] #store rho of the cluster centers. It will be faster AND more precise
+                    tmp_rho=self.rho[idx]
+                    if tmp_rho/rhomax>R_CORE:
+                        old_icl=icl
+                    ###
+                    ct.append(old_icl)
                     idx+=1
                 ctrajs.append(np.array(ct))
 
