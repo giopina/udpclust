@@ -364,15 +364,63 @@ class cluster_UDP:
 
         elif isinstance(self.trj_shape,np.ndarray):
             old_icl=len(self.cores_idx) # fake microstate, where u start all the trj and never enter again
-            for iframe in range(self.trj_shape[itraj][0]):
+            for iframe in range(self.trj_shape[0]):
                 icl=self.frame_cl[iframe]
-                if iframe not in self.cores_idx[icl]:
-                    icl=old_icl
-                ctrajs.append(icl)
+                rhomax=self.centers_rho[icl] #store rho of the cluster centers. It will be faster AND more precise
+                tmp_rho=self.rho[iframe]
+                if tmp_rho/rhomax>R_CORE:
+                    old_icl=icl
+                    ###
+                ct.append(old_icl)
                 old_icl=icl
             ctrajs=np.array(ctrajs) ### TODO: check if it is better to return a single ndarray or a list, for PyEmma compatibility
             
         return ctrajs
+
+    def get_core_traj_rev(self,tica_traj=None):
+        """Return the reversed core-set discrete trajectory, defined with the "coring" approach (Buchete and Hummer, 2008).
+           The idea is to assign each frame which is NOT in a core set, to the last core set visited.
+
+        input:
+          tica_traj :: (optional, NOT SUPPORTED YET) trajectory to assign (different from trj_tot)
+        
+
+        return ::
+          inverted ctrajs that correspond to [tr[::-1] for tr in trajs]
+        """
+        #        if self.ctrajs==None: ### Could I really need this sometimes?
+        ctrajs=[]
+        R_CORE=np.exp(-self.delta)
+        if isinstance(self.trj_shape,list):
+            idx=0 # this counts the idx in the concatenated list self.trj_tot 
+            for itraj in range(len(self.trj_shape)):
+                old_icl=len(self.cores_idx) # fake microstate, where u start all the trj and never enter again
+                ct=[]
+                for iframe in range(self.trj_shape[-1-itraj][0]):
+                    icl=self.frame_cl[-idx-1]
+                    rhomax=self.centers_rho[icl]
+                    tmp_rho=self.rho[-1-idx]
+                    if tmp_rho/rhomax>R_CORE:
+                        old_icl=icl
+                    ###
+                    ct.append(old_icl)
+                    idx+=1
+                ctrajs.append(np.array(ct))
+            ctrajs=ctrajs[::-1] # change the order of the trajectories
+
+        elif isinstance(self.trj_shape,np.ndarray):
+            old_icl=len(self.cores_idx) # fake microstate, where u start all the trj and never enter again
+            for iframe in range(self.trj_shape[0]):
+                icl=self.frame_cl[-iframe-1]
+                rhomax=self.centers_rho[icl]
+                tmp_rho=self.rho[-1-iframe]
+                if tmp_rho/rhomax>R_CORE:
+                    old_icl=icl
+                    ###
+                ctrajs.append(old_icl)
+            ctrajs=np.array(ctrajs) ### TODO: check if it is better to return a single ndarray or a list, for PyEmma compatibility
+            
+        return ctrajs ### returns correspond to [tr[::-1] for tr in trajs]
 
 
 
