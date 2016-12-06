@@ -263,7 +263,7 @@ class cluster_UDP:
         t0=time.time()
 
 
-        tree=cKDTree(self.trj_sub)
+        tree=cKDTree(self.trj_sub) ### TODO add an option to turn this off and go bruteforce (may be quicker for d>20?)
         lb=max(self.trj_sub.shape[0]/4,1) ### TODO check what's a smart optimal value for the denominator
         print lb
         Nb=self.Ntot/lb
