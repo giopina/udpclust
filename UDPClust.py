@@ -34,6 +34,7 @@ class cluster_UDP:
     coring      :: bool    :: True to define core sets
     delta       :: float   :: parameter for core set definition
     sensibility :: float   :: parameter in clusters merging
+    bigdata     :: bool    :: (default = False) set True if you really want to let the program run with >20k points (it's going to be really slow)
 
       # dataset information
     Ntot        :: int     :: total number of data points
@@ -71,7 +72,7 @@ class cluster_UDP:
     """
     #### this should be the constructor
 #    def __init__(self,dmat,dim,trj_tot,stride=1,merge=True):
-    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0):
+    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False):
         """Constructor of the class cluster_UDP:
         input variables
 
@@ -96,6 +97,7 @@ class cluster_UDP:
         sens :: (default=1) sensibility parameter in the clustering algorithm. Increase to merge more clusters
 
         delta :: (default=1.0) core set definition parameter
+        bigdata :: (default=False) set True if you really want to let the program run with >20k points (it's going to be really slow)
         """
 
         #### store internal variables
@@ -103,6 +105,7 @@ class cluster_UDP:
         self.sensibility=sens
         self.dim=dim
         self.delta=delta
+        self.bigdata=bigdata
 
 
         # trj_tot can be a a numpy array shaped (N.frames)x(N.coords)
@@ -132,8 +135,9 @@ class cluster_UDP:
         self.trj_sub=self.trj_tot[::self.stride]
         assert self.trj_sub.shape[0]>1, 'ERROR: stride is too large, the subset contains only one point'
 
-#        assert self.trj_sub.shape[0]<20000, 'WARNING: the size of the distance matrix will be large. Maybe you should decrease the stride'
-        if self.trj_sub.shape[0]>20000: print 'WARNING: the size of the distance matrix will be large. Maybe you should decrease the stride'
+        if not self.bigdata:
+            assert self.trj_sub.shape[0]<20000, 'WARNING: the size of the distance matrix will be large. Maybe you should decrease the stride.(run with bigdata=True to skip this check)'
+#        if self.trj_sub.shape[0]>20000: print 'WARNING: the size of the distance matrix will be large. Maybe you should decrease the stride'
 
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
