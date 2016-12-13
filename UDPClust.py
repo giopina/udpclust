@@ -269,7 +269,7 @@ class cluster_UDP:
 
         tree=cKDTree(self.trj_sub) ### TODO add an option to turn this off and go bruteforce (may be quicker for d>20?)
         lb=max(self.trj_sub.shape[0]/4,1) ### TODO check what's a smart optimal value for the denominator
-        print lb
+#        print lb
         Nb=self.Ntot/lb
         for ib in range(Nb+1):
             ### TODO: make this more efficient (fortran? c++? gpu?)            
@@ -295,7 +295,7 @@ class cluster_UDP:
         ###
         self.n_clusters=len(self.cl_idx)
         print time.time()-t0
-        print "finished clustering"
+        print "finished postprocessing"
         return 
     #END FUNCTION __CLUSTERING
 
