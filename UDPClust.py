@@ -35,6 +35,7 @@ class cluster_UDP:
     delta       :: float   :: parameter for core set definition
     sensibility :: float   :: parameter in clusters merging
     bigdata     :: bool    :: (default = False) set True if you really want to let the program run with >20k points (it's going to be really slow)
+    n_jobs      :: int     :: (default = -1) number of processor to use for cKDTree.query (-1 will use all of them)
 
       # dataset information
     Ntot        :: int     :: total number of data points
@@ -72,7 +73,7 @@ class cluster_UDP:
     """
     #### this should be the constructor
 #    def __init__(self,dmat,dim,trj_tot,stride=1,merge=True):
-    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False):
+    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False,n_jobs=-1):
         """Constructor of the class cluster_UDP:
         input variables
 
@@ -98,6 +99,7 @@ class cluster_UDP:
 
         delta :: (default=1.0) core set definition parameter
         bigdata :: (default=False) set True if you really want to let the program run with >20k points (it's going to be really slow)
+        n_jobs :: (default = -1) number of processor to use for cKDTree.query (-1 will use all of them)
         """
 
         #### store internal variables
@@ -106,6 +108,7 @@ class cluster_UDP:
         self.dim=dim
         self.delta=delta
         self.bigdata=bigdata
+        self.n_jobs=n_jobs
 
 
         # trj_tot can be a a numpy array shaped (N.frames)x(N.coords)
@@ -282,8 +285,10 @@ class cluster_UDP:
             ###
 #            sqdists=distance.cdist(self.trj_sub,frames,'sqeuclidean') # should be even faster
 #            idxs=np.argmin(sqdists,axis=0)
-            
-            idxs=tree.query(frames)[1] # this is freaking fast
+#            print ib,Nb,frames.shape
+            if frames.shape[0]==0:
+                continue
+            idxs=tree.query(frames,n_jobs=self.n_jobs)[1] # this is freaking fast
 
             self.frame_cl[ib*lb:(ib+1)*lb]=self.frame_cl_sub[idxs]
             self.rho[ib*lb:(ib+1)*lb]=self.rho_sub[idxs]

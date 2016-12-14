@@ -64,7 +64,7 @@ def main():
         traj.append([float(x) for x in line.split()])
     traj=np.array(traj)
     print 'shape of input array =',traj.shape
-    cl=dp.cluster_UDP(args.dim,traj,stride=args.stride,coring=args.coring,delta=args.delta,sens=args.sens,bigdata=args.bigdata)
+    cl=dp.cluster_UDP(args.dim,traj,stride=args.stride,coring=args.coring,delta=args.delta,sens=args.sens,bigdata=args.bigdata,n_jobs=-1)
     print 'Clustering done'
     #fout=open(sys.argv[3],'wb')
     #pickle.dump(cl,fout,-1)
