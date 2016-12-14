@@ -286,7 +286,7 @@ class cluster_UDP:
 #            sqdists=distance.cdist(self.trj_sub,frames,'sqeuclidean') # should be even faster
 #            idxs=np.argmin(sqdists,axis=0)
 #            print ib,Nb,frames.shape
-            if frames.shape[0]==0:
+            if frames.shape[0]==0: # you need this check because the parallel version crashes for empty input
                 continue
             idxs=tree.query(frames,n_jobs=self.n_jobs)[1] # this is freaking fast
 
