@@ -46,7 +46,7 @@ Other internal variables are
 ### Other functions ###
      clustering.get_core_trajs() # return the discrete trajectories using the coring approach of Hummer and Buchete
 
-     clustering.get_centers()     #Computes the average position of each cluster
+     clustering.get_centers()     #Computes the average position of each cluster (Not the best choice for a "center". You should use the argmax(rho) for each cluster
 
 
 ### AUTHORS ###

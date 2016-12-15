@@ -21,5 +21,5 @@ ctrajs=cl_dpa.get_core_traj()
 
 its=msm.its(ctrajs,lags=range(1,10,1))
 
-np.savetxt('out-msm_its.dat',its.timescales)
+np.savetxt('out-msm_its.dat',its.timescales,fmt="%.6e")
 
