@@ -164,7 +164,7 @@ contains
          i=survivors(ii)
          idmax=.true.
          j=1
-         do while (idmax .and. (j.le.Nstar(i)))<
+         do while (idmax .and. (j.le.Nstar(i)))
             if ((ordRho(i).gt.ordRho(Nlist(i,j))).and.(.not.filter(Nlist(i,j))))  idmax=.false. ! ### I could probably also change this
             j=j+1
          enddo
@@ -924,7 +924,8 @@ subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Ns
   integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
   integer,parameter :: minknn=8     ! minimum number of neighbours to explore
   !!Global variables
-  real*8,intent(in) :: dist_mat(Nele*(Nele-1)/2)       ! Distance matrix !###
+!  real*8,intent(in) :: dist_mat(Nele*(Nele-1)/2)       ! Distance matrix !###
+  real*8,intent(in) :: dist_mat(Nele,maxknn)        !
   integer,intent(in) :: Nele                   ! Number of elements
   !    integer,intent(in) :: ND                     ! Number of distances
   integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
@@ -969,26 +970,6 @@ subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Ns
   endif
 
   ! get prefactor for Volume calculation
-  !### cambiato da Alex
-  !    if (mod(dimint,2).eq.0) then
-  !       k=dimint/2
-  !       m=1
-  !       do i=1,k
-  !          m=m*i
-  !       enddo
-  !       prefactor=pi**k/(dfloat(m))
-  !    else
-  !       k=(dimint-1)/2
-  !       m=1
-  !       do i=1,k
-  !          m=m*i
-  !       enddo
-  !       n=m
-  !       do i=k+1,dimint
-  !          n=n*i
-  !       enddo
-  !       prefactor=2.*dfloat(m)*(4.*pi)**k/(dfloat(n))
-  !    endif
   if (mod(dimint,2).eq.0) then
      k=dimint/2
      m=1
@@ -1011,25 +992,33 @@ subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Ns
 
 
 
-  allocate (Vols(Nele))
-  allocate (iVols(Nele))
+!  allocate (Vols(Nele))
+!  allocate (iVols(Nele))
+
+  allocate (Vols(maxknn))
+  allocate (iVols(maxknn))
 
   do i=1,Nele
+
      Vols(:)=9.9E9
-     do j=1,Nele
-        if (i.ne.j) then
-           if(i.eq.j) then
-              id_err=13
-              RETURN
-           endif
-           Vols(j)=prefactor*(gDist(i,j))**dimint
-        endif
+     do j=1,maxknn
+        Vols(j)=prefactor*dist_mat(i,j)**dimint
      enddo
-     call HPSORT(Nele,Vols,iVols) !sort Vols, iVols is the permutation
-     do j=1,limit
-        Nlist(i,j)=iVols(j)
-     enddo
-     ! get nstar
+     !do j=1,Nele
+     !   if (i.ne.j) then
+     !      if(i.eq.j) then
+     !         id_err=13
+     !         RETURN
+     !      endif
+     !      Vols(j)=prefactor*(gDist(i,j))**dimint
+     !   endif
+     !enddo
+!     call HPSORT(Nele,Vols,iVols) !sort Vols, iVols is the permutation
+!     do j=1,limit
+!        Nlist(i,j)=iVols(j)
+!     enddo
+
+     !### get nstar     
      viol=.false.
      k=minknn
      n=1
@@ -1047,20 +1036,7 @@ subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Ns
      Nstar(i)=k-4 ! ### ha senso?
      if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
 
-     ! ### kadd funge da boolean. Qui sto aggiungendo vicini che sono 
-     ! ### a una distanza computazionalmente indistinguibile al mio calcolo
-     ! ### (ma ha senso sta roba?) Comunque nel nuovo prog di alex non c'e'
-     !kadd=1
-     !if (Nstar(i).eq.limit) kadd=0
-     !do while (kadd.eq.1)
-     !   if ((abs(gDist(i,Nlist(i,Nstar(i)))-gDist(i,Nlist(i,Nstar(i)+1)))).lt.9.99D-99) then
-     !      Nstar(i)=Nstar(i)+1
-     !      if (Nstar(i).eq.limit) kadd=0
-     !   else
-     !      kadd=0
-     !   endif
-     !enddo
-     ! ### ##########################3
+     ! ### ##########################
      Rho_err(i)=-9.9d99
      rhg=dfloat(Nstar(i))/Vols(Nstar(i)) ! Rho without fit
      Rho(i)=rhg
@@ -1138,6 +1114,7 @@ subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Ns
   enddo
   !    close(22)
   deallocate (Vols,iVols)
+  !deallocate (Vols)
 
   ! Filter with neighbours density (Iterative version)
   filter(:)=.false.
@@ -1194,18 +1171,18 @@ subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Ns
   return
 
 
-contains
-  !
-  real*8 function gDist(i,j)
-    integer :: i,j,l,m
-    integer*8 :: k
-    l=max(i,j)
-    m=min(i,j)
-    k=(m-1)*Nele-(m*m+m)/2+l
-    gDist=dist_mat(k)
-    return
-  end function gDist
-  !
+!contains
+!  !
+!  real*8 function gDist(i,j)
+!    integer :: i,j,l,m
+!    integer*8 :: k
+!    l=max(i,j)
+!    m=min(i,j)
+!    k=(m-1)*Nele-(m*m+m)/2+l
+!    gDist=dist_mat(k)
+!    return
+!  end function gDist
+!  !
 end subroutine get_densities
   
   

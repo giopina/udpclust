@@ -25,15 +25,27 @@ traj=np.array(traj)
 print 'shape of input array =',traj.shape
 
 
-
+maxknn=496
 from scipy.spatial import distance
+from scipy.spatial import cKDTree
 from UDP_functions import locknn
-dmat=distance.pdist(traj)
+#dmat=distance.pdist(traj)
+#print np.sort(distance.squareform(dmat)[0])[:20]
+tree=cKDTree(traj)
+dmat,Nlist=tree.query(traj,k=maxknn,n_jobs=-1)
+#print dmat[0,:20]
+Nlist+=1
+
+#print dmat[0]
+#print dmat.shape
+#order=np.argsort(dmat,axis=1)
+#dmat=dmat[order]
+#Nlist=Nlist[order]
 print 'dmat computed'
 Npoints=traj.shape[0]
 # 1) initialize quantities that will be computed by the fortran subroutine
 #   density for each frame in trj_sub
-maxknn=496
+
 rho=np.zeros(Npoints)
 rho_err=np.zeros(Npoints)
 #   filter value for each frame in trj_sub (either 0 or 1)
@@ -43,15 +55,17 @@ id_err=np.array(0,dtype=np.int32)
 #   dimension
 dim=np.array(dim,dtype=np.int32)
 #   Neighbour list within dc
-Nlist=np.ones((Npoints,maxknn),dtype=np.int32,order='F')*-1
+#Nlist=np.ones((Npoints,maxknn),dtype=np.int32,order='F')*-1
+Nlist=np.array(Nlist,dtype=np.int32,order='F')
 #   N. of NN taken for comp dens
 Nstar=np.zeros(Npoints,dtype=np.int32)
 #
+
 # 2) call fortran subroutine
 import time
 print 'fortran locknn'
 t0=time.time()
-UDP_modules.dp_clustering.get_densities\
+UDP_modules.get_densities\
     (id_err,dmat,dim,rho,rho_err,filt,Nlist,Nstar)
 print 'Done!',
 print time.time()-t0,
