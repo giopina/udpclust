@@ -5,7 +5,7 @@ from scipy.special import gamma
 #import UDP_modules
 from critfile import critV
 
-from UDP_modules import HPSORT
+#from UDP_modules import HPSORT
 
 def locknn(dmat,Nele,dimint,maxknn=496):
     # dmat: distance matrix in triangular ofrm

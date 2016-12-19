@@ -53,12 +53,8 @@ print 'fortran locknn'
 t0=time.time()
 UDP_modules.dp_clustering.get_densities\
     (id_err,dmat,dim,rho,rho_err,filt,Nlist,Nstar)
-#self.frame_cl_sub,self.rho_sub,self.filt_sub,self.dim,self.id_err,self.sensibility)
-#        del dmat ### I'm not going to use it again. So delete it to make space for assignment
 print 'Done!',
 print time.time()-t0,
-#print 's; now post-processing'
-
 
 
 ###  cl=dp.cluster_UDP(dim,traj)
@@ -67,7 +63,6 @@ print time.time()-t0,
 ###  filt=cl.filt
 
 
-#rho,rho_err,filt,Nlist,Nstar=locknn(dmat,len(traj),dim)
 
 fh=open(sys.argv[3]+'_rho.dat','w')
 iframe=0
