@@ -50,9 +50,12 @@ contains
     logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
     integer :: Nlist(Nele,maxknn) ! Neighbour list within dc
     integer :: Nstar(Nele)   ! N. of NN taken for comp dens
+<<<<<<< HEAD
 
     integer :: survivors(Nele) ! ###
     integer :: Nsurv           ! ###
+=======
+>>>>>>> pitone
        
     integer,allocatable :: Centers(:) ! Centers of the peaks
     integer,intent(inout) :: Cluster(Nele) ! Cluster ID for the element
@@ -68,6 +71,10 @@ contains
     integer :: Nclus_m                  ! Number of Cluster merged
 
     id_err=0
+<<<<<<< HEAD
+=======
+    
+>>>>>>> pitone
     call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar) ! ### my version
     call clustering(id_err)                      ! get Clusters
     call merging(id_err) ! Generate a new matrix without peaks within border error  
@@ -76,6 +83,7 @@ contains
     return
 
   contains
+<<<<<<< HEAD
     subroutine get_survivors()
       integer :: i
       Nsurv=0
@@ -87,6 +95,9 @@ contains
       enddo
     end subroutine get_survivors
     
+=======
+ 
+>>>>>>> pitone
     subroutine clustering(id_err)
       implicit none
       integer :: id_err
@@ -576,7 +587,11 @@ contains
     !!Global variables
     real*8,intent(in) :: dist_mat(Nele*(Nele-1)/2)       ! Distance matrix !###
     integer,intent(in) :: Nele                   ! Number of elements
+<<<<<<< HEAD
     !    integer,intent(in) :: ND                     ! Number of distances
+=======
+!    integer,intent(in) :: ND                     ! Number of distances
+>>>>>>> pitone
     integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
 
     ! These variables are used in densities calculation and then passed to clustering
@@ -591,14 +606,19 @@ contains
     !! Local variables
     integer :: limit
     integer :: i,j,k,m,n
+<<<<<<< HEAD
     real*8 :: is,js,ks,ms,ns
     !    integer :: i1 ! ### my integer for loops
+=======
+    integer :: i1 ! ### my integer for loops
+>>>>>>> pitone
     integer :: kadd
     integer :: niter,nfilter
     real*8,allocatable :: Vols(:)
     integer,allocatable :: iVols(:)
     real*8, parameter :: pi=3.14159265359
     real*8 :: prefactor
+<<<<<<< HEAD
     real*8 :: rhg,dL,rjaver,rjfit
     !    real*8,dimension(4) :: rh
     !    real*8 :: rjaver,rjfit
@@ -611,6 +631,16 @@ contains
     real*8 :: slope,yintercept
     real*8 :: temp_err,temp_rho
 
+=======
+    real*8 :: rhg,dl
+    real*8,dimension(4) :: rh
+    real*8 :: rjaver,rjfit
+    real*8,dimension(4) :: rjk
+    logical :: viol
+    real*8 :: xmean,ymean,a,b                                     !  FIT
+    real*8, dimension(4) :: x
+    integer :: partit(4)
+>>>>>>> pitone
 
 
     id_err=0
@@ -621,6 +651,7 @@ contains
     endif
 
     ! get prefactor for Volume calculation
+<<<<<<< HEAD
     !### cambiato da Alex
     !    if (mod(dimint,2).eq.0) then
     !       k=dimint/2
@@ -641,6 +672,8 @@ contains
     !       enddo
     !       prefactor=2.*dfloat(m)*(4.*pi)**k/(dfloat(n))
     !    endif
+=======
+>>>>>>> pitone
     if (mod(dimint,2).eq.0) then
        k=dimint/2
        m=1
@@ -650,6 +683,7 @@ contains
        prefactor=pi**k/(dfloat(m))
     else
        k=(dimint-1)/2
+<<<<<<< HEAD
        ms=0.
        do i=1,k
           ms=ms+dlog(dfloat(i))
@@ -668,14 +702,33 @@ contains
 
 !    write(12345,*) Nele
 !    open(22,file='cacca.dat')
+=======
+       m=1
+       do i=1,k
+          m=m*i
+       enddo
+       n=m
+       do i=k+1,dimint
+          n=n*i
+       enddo
+       prefactor=2.*dfloat(m)*(4.*pi)**k/(dfloat(n))
+    endif
+
+    allocate (Vols(Nele))
+    allocate (iVols(Nele))
+
+>>>>>>> pitone
     do i=1,Nele
        Vols(:)=9.9E9
        do j=1,Nele
           if (i.ne.j) then
+<<<<<<< HEAD
              if(i.eq.j) then
                 id_err=13
                 RETURN
              endif
+=======
+>>>>>>> pitone
              Vols(j)=prefactor*(gDist(i,j))**dimint
           endif
        enddo
@@ -703,6 +756,7 @@ contains
 
        ! ### kadd funge da boolean. Qui sto aggiungendo vicini che sono 
        ! ### a una distanza computazionalmente indistinguibile al mio calcolo
+<<<<<<< HEAD
        ! ### (ma ha senso sta roba?) Comunque nel nuovo prog di alex non c'e'
        !kadd=1
        !if (Nstar(i).eq.limit) kadd=0
@@ -791,18 +845,82 @@ contains
 !       write (22,'(i6,1x,i3,1x,3(es28.18,1x),i3)') i,Nstar(i),Rho(i),Rho_err(i),rhg,partGood
     enddo
 !    close(22)
+=======
+       ! ### (ma ha senso sta roba?)
+       kadd=1
+       if (Nstar(i).eq.limit) kadd=0
+       do while (kadd.eq.1)
+          if ((abs(gDist(i,Nlist(i,Nstar(i)))-gDist(i,Nlist(i,Nstar(i)+1)))).lt.9.99D-99) then
+             Nstar(i)=Nstar(i)+1
+             if (Nstar(i).eq.limit) kadd=0
+          else
+             kadd=0
+          endif
+       enddo
+       partit(:)=Nstar(i)/4
+       partit(:MOD(Nstar(i),4))=partit(:MOD(Nstar(i),4))+1
+       write(12345,*) Nstar(i)
+       !
+       ! ### ho capito il senso. Dovrebbe essere per ovviare al fatto che Nstar non e' per forza un multiplo di 4.
+       ! ### non sono sicuro se questo sia il modo migliore per farlo...
+       x(1)=dfloat(partit(1))/dfloat(Nstar(i))*0.5
+       x(2)=dfloat(partit(1))/dfloat(Nstar(i))+dfloat(partit(2))/dfloat(Nstar(i))*0.5
+       x(3)=dfloat(partit(1)+partit(2))/dfloat(Nstar(i))+dfloat(partit(3))/dfloat(Nstar(i))*0.5
+       x(4)=dfloat(partit(1)+partit(2)+partit(3))/dfloat(Nstar(i))+dfloat(partit(4))/dfloat(Nstar(i))*0.5
+       x=x*4.
+       rhg=dfloat(Nstar(i))/Vols(Nstar(i)) ! Rho without fit
+       if (Nstar(i).le.0) then
+          Rho(i)=rhg
+          Rho_err(i)=Rho(i)/dsqrt(dfloat(Nstar(i)))
+       else
+          ! get inv rho of the four quarters
+          !            j=Nstar(i)/4
+          !            a=dfloat(j)
+          rh(1)=Vols(partit(1))/dfloat(partit(1))
+          rh(2)=(Vols(partit(1)+partit(2))-Vols(partit(1)))/dfloat(partit(2))
+          rh(3)=(Vols(partit(1)+partit(2)+partit(3))-Vols(partit(1)+partit(2)))/dfloat(partit(3))
+          rh(4)=(Vols(partit(1)+partit(2)+partit(3)+partit(4))-Vols(partit(1)+partit(2)+partit(3)))/dfloat(partit(4))
+          ! make the quadratic fit rhj=1/rho+C*j^2
+          xmean=0.25*sum(x)
+          ymean=0.25*sum(rh)
+          b=SUM((x-xmean)**2)
+          a=SUM((x-xmean)*(rh-ymean))
+          a=a/b
+          rjfit=ymean-a*xmean
+          ! Perform jacknife resampling for estimate the error (it includes statistical
+          ! error and curvature error) 
+          do i1=1,4
+             xmean=(SUM(x)-x(i1))/dfloat(3)
+             ymean=(SUM(rh)-rh(i1))/dfloat(3)
+             b=SUM((x-xmean)**2)-(x(i1)-xmean)**2
+             a=SUM((x-xmean)*(rh-ymean))-(x(i1)-xmean)*(rh(i1)-ymean)
+             a=a/b
+             !###
+             rjk(i1)=ymean-a*xmean
+          enddo
+          rjaver=0.25*SUM(rjk)
+          Rho(i)=4.*rjfit-3.*rjaver
+          Rho_err(i)=0.75*SUM((rjk-rjaver)**2)
+          Rho(i)=1./Rho(i)
+          Rho_err(i)=max(Rho(i)/sqrt(float(Nstar(i))),Rho(i)*Rho(i)*sqrt(Rho_err(i)))
+       endif
+    enddo
+>>>>>>> pitone
     deallocate (Vols,iVols)
 
     ! Filter with neighbours density (Iterative version)
     filter(:)=.false.
     viol=.true.
     niter=0
+<<<<<<< HEAD
     do i=1,Nele
        if ((Rho(i).lt.0).or.(Rho_err(i).gt.Rho(i)).or.(Rho(i).gt.1D308)) then
           filter(i)=.true.
        endif
     enddo
 
+=======
+>>>>>>> pitone
     do while (viol)
        niter=niter+1
        viol=.false.

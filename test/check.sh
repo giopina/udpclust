@@ -2,10 +2,14 @@
 
 {
 rm -f out-*.dat > /dev/null 2>/dev/null
-echo "Running the scripts..."
+echo "Running the clustering scripts..."
 time ./test.sh >log 2>err
 time ./test-assign.sh >>log 2>>err
 time ./test-its.sh >>log 2>>err
+
+rm -f out2-*.dat > /dev/null 2>/dev/null
+echo "Running the density scripts..."
+time ./test2.sh >>log 2>>err
 
 echo "Done."
 
