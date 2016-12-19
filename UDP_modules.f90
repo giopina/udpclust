@@ -189,6 +189,7 @@ contains
       !endif
          ! Assign not filtered
          ! ### change it with survivors
+         ! ### TODO: change this to look only at the points inside Nstar (there has to be an unfiltered point with higher density, otherwise the considered point would be filtered OR a center
          do i=1,Nele
             ig=-1
             j=iRho(i)
@@ -239,7 +240,10 @@ contains
          !###
 
          ! Assign filtered to the same Cluster as its nearest unfiltered neighbour
-         ! what happens if all neighbors are filtered
+         ! what happens if all neighbors are filtered?
+         ! this can happen, at least in principle. What should I do then?
+         ! option 1: assign the point to the same cluster of the closest filtered point (you should do this in the end, but it will depend on the order you consider the points...
+         ! option 2: ?
          do i=1,Nele
             ig=-1
             if (Cluster(i).eq.0) then
@@ -254,7 +258,7 @@ contains
                      endif
                   endif
                enddo
-               if (dmin.gt.9.8d99) then
+               if (dmin.gt.9.8d99) then !### what if all the neighbours are filtered?
                   do j=1,Nele ! find the min d in not filter elements
                      if ((Cluster(j).ne.0).and.(.not.filter(j))) then
                         d=gDist(i,j)
