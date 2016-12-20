@@ -70,8 +70,10 @@ contains
     id_err=0
     call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar) ! ### my version
     call clustering(id_err)                      ! get Clusters
-    call merging(id_err) ! Generate a new matrix without peaks within border error  
-    Cluster=Cluster_m
+    if(sensibility.gt.0.0) then
+       call merging(id_err) ! Generate a new matrix without peaks within border error  
+       Cluster=Cluster_m
+    endif
     !    stop
     return
 
