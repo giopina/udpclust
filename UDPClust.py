@@ -563,10 +563,10 @@ class cluster_UDP:
         fh=open(name+'_cl_idx.dat','w')
         icl=0
         for clust in self.cl_idx:
-            icl+=1
             fh.write('Cluster %d:\n'%icl)
             for idx in clust:
                 fh.write('  %d\n'%idx)
+            icl+=1
         fh.close()
 
     def dump_frames(self,name):
