@@ -997,13 +997,14 @@ subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Ns
 
   allocate (Vols(maxknn))
   allocate (iVols(maxknn))
-
+!  open(unit=22,file="udp_info.tmp")
   do i=1,Nele
 
      Vols(:)=9.9E9
-     do j=1,maxknn
+     do j=1,maxknn !TODO:skip the first neighbour!
         Vols(j)=prefactor*dist_mat(i,j)**dimint
      enddo
+!     write(*,*) Vols(1)
      !do j=1,Nele
      !   if (i.ne.j) then
      !      if(i.eq.j) then
@@ -1035,7 +1036,7 @@ subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Ns
      enddo
      Nstar(i)=k-4 ! ### ha senso?
      if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
-
+     
      ! ### ##########################
      Rho_err(i)=-9.9d99
      rhg=dfloat(Nstar(i))/Vols(Nstar(i)) ! Rho without fit
@@ -1110,9 +1111,9 @@ subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Ns
         Nstar(i)=savNstar
      enddo
      ! ### print
-     !       write (22,'(i6,1x,i3,1x,3(es28.18,1x),i3)') i,Nstar(i),Rho(i),Rho_err(i),rhg,partGood
+!     write (22,'(i6,1x,i3,1x,3(es28.18,1x),i3)') i,Nstar(i),Rho(i),Rho_err(i),rhg,partGood
   enddo
-  !    close(22)
+!  close(22)
   deallocate (Vols,iVols)
   !deallocate (Vols)
 

@@ -32,8 +32,11 @@ from UDP_functions import locknn
 #dmat=distance.pdist(traj)
 #print np.sort(distance.squareform(dmat)[0])[:20]
 tree=cKDTree(traj)
-dmat,Nlist=tree.query(traj,k=maxknn,n_jobs=-1)
+dmat,Nlist=tree.query(traj,k=maxknn+1,n_jobs=-1)
 #print dmat[0,:20]
+#print Nlist[:,0]
+Nlist=Nlist[:,1:]
+dmat=dmat[:,1:]
 Nlist+=1
 
 #print dmat[0]
@@ -81,6 +84,6 @@ print time.time()-t0,
 fh=open(sys.argv[3]+'_rho.dat','w')
 iframe=0
 for r in rho:
-    fh.write('%d %f %f\n'%(iframe,r,filt[iframe]))
+    fh.write('%d %.6e %.6e\n'%(iframe,r,filt[iframe]))
     iframe+=1
 fh.close()
