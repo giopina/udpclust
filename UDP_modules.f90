@@ -325,15 +325,8 @@ contains
 
          ! ### my version
          do i=1,Nele ! si puo' fare il loop solo su i filter?
-            ig=-1
             if (filter(i)) CYCLE
-            ! ### non so farlo bene...
-            !do j=1,Nstar(i)
-            !   l=Nlist(i,j)
-            !   if (cluster(l).ne.cluster(i)) then
-            !      
-            !   endif
-            !enddo
+            ig=-1
             dmin=9.9d99
             do k=1,Nstar(i)
                l=Nlist(i,k)
@@ -351,7 +344,8 @@ contains
                id_err=12
                RETURN
             endif
-            do k=1,Nstar(ig) ! ### Now this is different from Alex's program
+!            do k=1,Nstar(ig) ! ### Now this is different from Alex's program
+            do k=1,maxknn ! ### Now this is different from Alex's program
                l=Nlist(ig,k)
                if(filter(l)) CYCLE
                if (cluster(l).eq.cluster(i)) then
