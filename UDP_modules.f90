@@ -154,7 +154,7 @@ contains
       enddo
       ! ###
 
-      write(*,*) "$$$$$$$$$$$$",Nclus
+!      write(*,*) "$$$$$$$$$$$$",Nclus
 
       allocate (Centers(Nclus))
       do i=1,Nele
@@ -171,18 +171,23 @@ contains
          ! Assign not filtered
          ! ### change it with survivors
          ! ### TODO: change this to look only at the points inside Nstar (there has to be an unfiltered point with higher density, otherwise the considered point would be filtered OR a center
-         do i=1,Nele
-            ig=-1
+         do j=1,Nele
+            i=iRho(j)
+            !ig=-1
             !        j=iRho(i)
-            if (.not.filter(i).and.Cluster(i).eq.0) then
+            if ((.not.filter(i)).and.Cluster(i).eq.0) then
+               ig=-1
                dmin=9.9d99
                !do k=1,i-1
                do k=1,Nstar(i)
                   l=Nlist(i,k) ! ### questa cosa mi da davvero un vantaggio?
                   if (.not.filter(l)) then
-                     if (dist_mat(i,k).le.dmin) then
-                        ig=l
-                        dmin=dist_mat(i,k) ! ### change this may improve
+!                     if(ordRho(l).gt.ordRho(i)) CYCLE ! ### TODO .gt. or .ge.?
+                     if(Rho_prob(i).lt.Rho_prob(l)) then ! ### TODO check this
+                        if (dist_mat(i,k).le.dmin) then
+                           ig=l
+                           dmin=dist_mat(i,k) ! ### change this may improve
+                        endif
                      endif
                   endif
                enddo
@@ -230,6 +235,10 @@ contains
          do i=1,Nele
             if (Cluster(i).eq.0) then
                ig=-1
+               if(.not.filter(i)) then
+                  id_err=12
+                  RETURN
+               endif
                dmin=9.9d99
                !do k=1,Nstar(i) ! find the min d in not filt elements
                do k=1,maxknn ! find the min d in not filt elements
@@ -301,6 +310,13 @@ contains
 
             endif
          enddo !endo while
+
+
+!         open(unit=24,file='clus_before.dat')
+!         do i=1,Nele
+!            write(24,*) Cluster(i)
+!         enddo
+!         close(24)
          ! find border densities
          allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
          Bord(:,:)=-9.9D99
