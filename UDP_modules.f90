@@ -154,6 +154,7 @@ contains
       enddo
       ! ###
 
+      write(*,*) "$$$$$$$$$$$$",Nclus
 
       allocate (Centers(Nclus))
       do i=1,Nele
@@ -336,6 +337,7 @@ contains
             endif
             do k=1,Nstar(ig) ! ### Now this is different from Alex's program
                l=Nlist(ig,k)
+               if(filter(l)) CYCLE
                if (cluster(l).eq.cluster(i)) then
                   !              do j=1,Nstar(l)
                   !              if (gDist(Nlist(i,k),ig).lt.dmin) then 
