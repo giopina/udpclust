@@ -71,8 +71,10 @@ contains
 
     call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar) ! ### my version
     call clustering(id_err)                      ! get Clusters
-    call merging(id_err) ! Generate a new matrix without peaks within border error  
-    Cluster=Cluster_m
+    if(sensibility.gt.0.0) then
+       call merging(id_err) ! Generate a new matrix without peaks within border error  
+       Cluster=Cluster_m
+    endif
     !    stop
     return
 
@@ -344,20 +346,35 @@ contains
                id_err=12
                RETURN
             endif
-!            do k=1,Nstar(ig) ! ### Now this is different from Alex's program
-            do k=1,maxknn ! ### Now this is different from Alex's program
-               l=Nlist(ig,k)
+            do k=1,Nstar(i)
+               l=Nlist(i,k)
                if(filter(l)) CYCLE
-               if (cluster(l).eq.cluster(i)) then
-                  !              do j=1,Nstar(l)
-                  !              if (gDist(Nlist(i,k),ig).lt.dmin) then 
-                  !dist_mat
-                  if (dist_mat(ig,k).lt.dmin) then 
-                     extend=.false.
+               do jj=1,maxknn
+                  j=Nlist(l,jj)
+                  if (j.eq.ig) THEN
+                     d=dist_mat(l,jj)
                      EXIT
-                  endif
+                  ENDIF
+               enddo
+               if (d.lt.dmin) then 
+                  extend=.false.
+                  EXIT
                endif
             enddo
+!            do k=1,Nstar(ig) ! ### Now this is different from Alex's program
+            !do k=1,maxknn ! ### Now this is different from Alex's program
+            !   l=Nlist(ig,k)
+            !   if(filter(l)) CYCLE
+            !   if (cluster(l).eq.cluster(i)) then
+            !      !              do j=1,Nstar(l)
+            !      !              if (gDist(Nlist(i,k),ig).lt.dmin) then 
+            !      !dist_mat
+            !      if (dist_mat(ig,k).lt.dmin) then 
+            !         extend=.false.
+            !         EXIT
+            !      endif
+            !   endif
+            !enddo
             if (extend) then
                if (Rho_prob(i).gt. Bord(cluster(i),cluster(ig))) then ! this if is useless? no it's not
                   Bord(cluster(i),cluster(ig))=Rho_prob(i)
