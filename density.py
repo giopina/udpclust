@@ -68,7 +68,7 @@ Nstar=np.zeros(Npoints,dtype=np.int32)
 import time
 print 'fortran locknn'
 t0=time.time()
-UDP_modules.get_densities\
+UDP_modules.dp_clustering.get_densities\
     (id_err,dmat,dim,rho,rho_err,filt,Nlist,Nstar)
 print 'Done!',
 print time.time()-t0,

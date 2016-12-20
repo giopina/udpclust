@@ -40,7 +40,6 @@ class cluster_UDP:
       # dataset information
     Ntot        :: int     :: total number of data points
     Npoints     :: int     :: number of data points in trj_sub
-    ND          :: int     :: number of distances
     dim         :: int     :: intrinsic dimension of data set
     stride      :: int     :: points to skip for clustering
     trj_tot     :: ndarray :: total data set
@@ -144,13 +143,22 @@ class cluster_UDP:
 
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
+        maxknn=496 ### TODO: this can become a parameter!
         if dmat==None:
             print 'Computing distances'
-            dmat=distance.pdist(self.trj_sub)
+            tree=cKDTree(self.trj_sub)
+            dmat,Nlist=tree.query(self.trj_sub,k=maxknn+1,n_jobs=self.n_jobs)
+            Nlist=Nlist[:,1:]
+            dmat=dmat[:,1:]
+            Nlist+=1
+            Nlist=np.array(Nlist,dtype=np.int32,order='F')
+            #dmat=np.array(dmat,order='F') ### TODO check if this is needed
+
+#            dmat=distance.pdist(self.trj_sub)
         else:
             assert dmat.shape[0]==self.trj_sub.shape[0],"ERROR: trj_tot[::stride] and distance matrix shapes do not match"
 
-        self.ND=len(dmat)
+#        self.ND=len(dmat)
         self.Ntot=self.trj_tot.shape[0]
         self.Npoints=self.trj_sub.shape[0]
 
@@ -173,8 +181,8 @@ class cluster_UDP:
                 stringa=''
 
         ### perform the clustering
-        self.__clustering(dmat)
-        del dmat
+        self.__clustering(dmat,Nlist)
+        del dmat,Nlist ### TODO this is not necessary maybe
         self.__postprocessing()
         ### check for errors
         assert not self.__errorcheck(), 'ERROR: Problem in clustering'
@@ -187,7 +195,7 @@ class cluster_UDP:
 #            self.find_core_sets(R_CORE=1.)
 
 
-    def __clustering(self,dmat):
+    def __clustering(self,dmat,Nlist):
         #
         # 1) initialize quantities that will be computed by the fortran subroutine
         #   index of cluster for each frame in trj_sub
@@ -203,7 +211,7 @@ class cluster_UDP:
         print 'fortran clustering'
         t0=time.time()
         UDP_modules.dp_clustering.dp_advance\
-            (dmat,self.frame_cl_sub,self.rho_sub,self.filt_sub,self.dim,self.id_err,self.sensibility)
+            (dmat,self.frame_cl_sub,self.rho_sub,self.filt_sub,self.dim,Nlist,self.id_err,self.sensibility)
 #        del dmat ### I'm not going to use it again. So delete it to make space for assignment
         print 'Done!',
         print time.time()-t0,
@@ -269,7 +277,7 @@ class cluster_UDP:
         ### this part may take some time
         t0=time.time()
 
-
+        ### TODO: this can be stored just once at the beginning
         tree=cKDTree(self.trj_sub) ### TODO add an option to turn this off and go bruteforce (may be quicker for d>20?)
         lb=max(self.trj_sub.shape[0]/4,1) ### TODO check what's a smart optimal value for the denominator
 #        print lb

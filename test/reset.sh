@@ -3,6 +3,7 @@ echo 'Running the scripts...'
 ./test.sh >log 2>err
 ./test-assign.sh >>log 2>>err
 ./test-its.sh >>log 2>>err
+./test-sens.sh >>log 2>>err
 echo 'Done.'
 
 echo 'Running the density scripts...'
