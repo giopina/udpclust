@@ -1187,54 +1187,385 @@ subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Ns
 end subroutine get_densities
   
   
-SUBROUTINE HPSORT(N,RA,s_order)
+!  subroutine dp_advance(dist_mat,Cluster,Rho,filter,dimint,Nele,ND,id_err,sensibility)
+subroutine clustering(id_err,Cluster,sensibility,dist_mat,Nele,Rho,Rho_err,filter,Nlist,Nstar)
+  !(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar)
   implicit none
-  integer N,s_order(N)
-  real*8 RA(N)
-  integer L,IR,I,J,sord
-  real*8 RRA
-  do i=1,n
-     s_order(i)=i
+
+
+  integer,intent(inout) :: id_err
+
+
+
+  integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
+  integer,parameter :: minknn=8     ! minimum number of neighbours to explore
+  !!Global variables
+  real*8,intent(in) :: dist_mat(Nele,maxknn)        !
+  integer,intent(in) :: Nele                   ! Number of elements
+  !integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
+
+  ! These variables are used in densities calculation and then passed to clustering
+  real*8,intent(in) :: Rho(Nele)        ! Density
+  real*8,intent(in) :: Rho_err(Nele)    ! Density error
+  logical,intent(in) :: filter(Nele)  ! Pnt with anomalous dens
+  integer,intent(in) :: Nlist(Nele,maxknn) ! Neighbour list within maxknn
+  integer,intent(in) :: Nstar(Nele)   ! N. of NN taken for comp dens
+
+  real*8, intent(in) :: sensibility
+
+  ! These variables are used in densities calculation and then passed to clustering
+  !    real*8,allocatable :: dc(:)         ! Dist for density calculation
+  integer :: survivors(Nele) ! ###
+  integer :: Nsurv           ! ###
+
+  integer,allocatable :: Centers(:) ! Centers of the peaks !may become intent inout
+  integer,intent(inout) :: Cluster(Nele) ! Cluster ID for the element
+  integer :: Nclus                  ! Number of Cluster
+  ! These seems to be used for merging ### should I define them here or later?
+  real*8,allocatable :: Bord(:,:)     ! Border Densities
+  real*8,allocatable :: Bord_err(:,:) ! Border Densities Error
+
+  real*8,allocatable :: cent(:)       ! Center Density
+  real*8,allocatable :: cent_err(:)   ! Center Error
+  ! Underscore m implies data after automatic mergin
+  integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
+  integer :: Nclus_m                  ! Number of Cluster merged
+
+  !! Local variables
+  integer :: i,j,k
+  integer :: ii,jj,kk
+  integer :: ig
+  integer :: l
+  logical :: idmax
+  real*8,allocatable :: Rho_prob(:)   ! Probability of having maximum Rho
+  real*8,allocatable :: Rho_copy(:)
+  integer,allocatable :: iRho(:),ordRho(:)
+  integer,allocatable :: eb(:,:)    ! Border elements
+  !integer,allocatable :: survivors(:)  ! ###
+  real*8 :: d,dmin
+  logical :: extend
+  logical :: viol
+  !!
+  id_err=0
+  !      allocate (Cluster(Nele))
+  !! Identify centers: delta>dc eqv. Max(rho) within dc
+  Cluster(:)=0              !
+  Nclus=0
+  ! Here I compute the probability of having density rho, g_i
+  allocate (Rho_prob(Nele))
+  Rho_prob(:)=0.
+  call get_survivors() ! ###
+  do ii=1,Nsurv
+     i=survivors(ii)
+     do jj=1,Nsurv
+        j=survivors(jj)
+        Rho_prob(i)=Rho_prob(i)-log(1.d0+exp(2.*(Rho(j)-Rho(i))/sqrt(Rho_err(i)**2+Rho_err(j)**2)))
+     enddo
   enddo
-  L=N/2+1
-  IR=N
-  !The index L will be decremented from its initial value during the
-  !"hiring" (heap creation) phase. Once it reaches 1, the index IR 
-  !will be decremented from its initial value down to 1 during the
-  !"retirement-and-promotion" (heap selection) phase.
-10 continue
-  if(L > 1)then
-     L=L-1
-     RRA=RA(L)
-     sord=s_order(L)
+
+  ! copy of rho (not efficient, but clarifies the code) ### !!!
+  allocate (Rho_copy(Nele))
+  allocate (iRho(Nele))
+  Rho_copy(:)=-Rho_prob(:)
+  call HPSORT(Nele,Rho_copy,iRho) ! iRho contains the order in density (iRho(1) is the element with highest Rho...)
+  deallocate (Rho_copy)      
+  allocate (ordRho(Nele))
+  do i=1,Nele
+     ordRho(iRho(i))=i                 ! ordRho is the complementary of iRho. Given an element, ordRho returns its order in density
+  enddo
+
+  ! ###
+  ! Now I'm getting the clusters
+  do ii=1,Nsurv
+     i=survivors(ii)
+     idmax=.true.
+     j=1
+     do while (idmax .and. (j.le.Nstar(i)))
+        if ((ordRho(i).gt.ordRho(Nlist(i,j))).and.(.not.filter(Nlist(i,j))))  idmax=.false. ! ### I could probably also change this
+        j=j+1
+     enddo
+     if (idmax) then
+        Nclus=Nclus+1
+        Cluster(i)=Nclus
+     endif
+  enddo
+  ! ###
+
+
+  allocate (Centers(Nclus))
+  do i=1,Nele
+     if (Cluster(i).ne.0) then
+        Centers(Cluster(i))=i
+     endif
+  enddo
+  if (Nclus.gt.1) then
+     ! if (Nclus.lt.1) then   
+     !   Cluster(:)=1
+     !   id_err=9
+     !   RETURN
+     !endif
+     ! Assign not filtered
+     ! ### change it with survivors
+     ! ### TODO: change this to look only at the points inside Nstar (there has to be an unfiltered point with higher density, otherwise the considered point would be filtered OR a center
+     do i=1,Nele
+        ig=-1
+!        j=iRho(i)
+        if (.not.filter(i).and.Cluster(i).eq.0) then
+           dmin=9.9d99
+           !do k=1,i-1
+           do k=1,Nstar(i)
+              l=Nlist(i,k) ! ### questa cosa mi da davvero un vantaggio?
+              if (.not.filter(l)) then
+                 if (dist_mat(i,k).le.dmin) then
+                    ig=l
+                    dmin=dist_mat(i,k) ! ### change this may improve
+                 endif
+              endif
+           enddo
+           if (ig.eq.-1) then
+              id_err=12
+              RETURN
+           else
+              Cluster(i)=Cluster(ig)
+           endif
+        endif
+     enddo
+     !do ii=1,Nsurv
+     !   i=survivors(ii)
+     !   ig=-1
+     !   j=iRho(ordRho(i))
+     !   write(*,*) ii,i,ordRho(i),j,cluster(j)
+     !   !if (.not.filter(j).and.Cluster(j).eq.0) then
+     !   if (Cluster(j).eq.0) then
+     !      dmin=9.9E29
+     !      do k=1,i-1 ! ### qui devo pensare a come farlo bene con survivors
+     !         l=iRho(k) ! ### questa cosa mi da davvero un vantaggio?
+     !         if (.not.filter(l)) then
+     !            if (gDist(j,l).le.dmin) then
+     !               ig=l
+     !               dmin=gDist(j,l) !
+     !            endif
+     !         endif
+     !      enddo
+     !      if (ig.eq.-1) then
+     !         id_err=12
+     !         RETURN
+     !      else
+     !         Cluster(j)=Cluster(ig)
+     !      endif
+     !   endif
+     !enddo
+     !###
+
+     ! Assign filtered to the same Cluster as its nearest unfiltered neighbour
+     ! what happens if all neighbors are filtered?
+     ! this can happen, at least in principle. What should I do then?
+     ! option 1: assign the point to the same cluster of the closest filtered point (you should do this in the end, but it will depend on the order you consider the points...
+     ! option 2: ?
+     viol=.false.
+     do i=1,Nele
+        ig=-1
+        if (Cluster(i).eq.0) then
+           dmin=9.9d99
+           do k=1,Nstar(i) ! find the min d in not filt elements
+              l=Nlist(i,k)
+              if ((Cluster(l).ne.0).and.(.not.filter(l))) then
+                 !d=gDist(i,l)
+                 d=dist_mat(i,k)
+                 if (d.le.dmin) then
+                    dmin=d
+                    ig=l
+                 endif
+              endif
+           enddo
+        endif
+        if (ig.ne.-1) then
+!           id_err=12
+!           RETURN
+!        endif
+        Cluster(i)=Cluster(ig)
+        else
+           viol=.true.
+        endif
+     enddo
+     do while (viol) !### TODO: check if this stops or get stuck. It should not happen
+                     !### TODO: change this so does not depend on the order
+        viol=.false.
+        do i=1,Nele
+           ig=-1
+           if (Cluster(i).eq.0) then
+              !              if (dmin.gt.9.8d99) then !### what if all the neighbours are filtered?
+              do k=1,Nstar(i) ! find the min d in not filter elements
+                 j=Nlist(i,k)
+                 if ((Cluster(j).ne.0)) then
+                    d=dist_mat(i,k)
+                    if (d.le.dmin) then
+                       dmin=d
+                       ig=j
+                    endif
+                 endif
+              enddo
+              if (ig.ne.-1) then
+                 !           id_err=12
+                 !           RETURN
+                 !        endif
+                 Cluster(i)=Cluster(ig)
+              else
+                 viol=.true.
+              endif
+              !if (ig.eq.-1) then
+              !   id_err=12
+              !   RETURN
+              !endif
+              !           Cluster(i)=Cluster(ig)
+           endif
+        enddo
+     enddo !endo while
+     ! find border densities
+     allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
+     Bord(:,:)=-9.9D99
+     Bord_err(:,:)=0.
+     eb(:,:)=0
+
+     ! ### questo si puo' fare in maniera migliore? Magari senza dc che viene usato solo qua e non sembra utile.
+     !do i=1,Nele ! si puo' fare il loop solo su i filter?
+     !   if (.not.filter(i)) then ! what if it is not filtered?
+     !      dmin=9.9d99
+     !      do j=1,Nele
+     !         if (.not.filter(j)) then
+     !            if (cluster(j).ne.cluster(i)) then
+     !               d=gDist(i,j)
+     !               if (d.lt.dmin) then
+     !                  dmin=d
+     !                  ig=j
+     !               endif
+     !            endif
+     !         endif
+     !      enddo
+     !      if (dmin.le.dc(i)) then
+     !         iref=i
+     !         k=0
+     !         extend=.true.
+     !         do while ( (k.lt.Nstar(i)).and.extend)
+     !            k=k+1
+     !            if (cluster(Nlist(i,k)).eq.cluster(i)) then
+     !               if (gDist(Nlist(i,k),ig).lt.dmin) extend=.false.
+     !            endif
+     !         enddo
+     !         if (extend) then
+     !            if (Rho_prob(iref).gt. Bord(cluster(i),cluster(ig))) then
+     !               Bord(cluster(i),cluster(ig))=Rho_prob(iref)
+     !               Bord(cluster(ig),cluster(i))=Rho_prob(iref)
+     !               Bord_err(cluster(i),cluster(ig))=Rho_err(iref)
+     !               Bord_err(cluster(ig),cluster(i))=Rho_err(iref)
+     !               eb(cluster(i),cluster(ig))=iref
+     !               eb(cluster(ig),cluster(i))=iref
+     !            endif
+     !         endif
+     !      endif !dmin.le.dc(i)
+     !   endif !filter
+     !enddo ! i=1,Nele
+     ! ######################3
+     ! ### my version
+     do i=1,Nele ! si puo' fare il loop solo su i filter?
+        ig=-1
+        if (filter(i)) CYCLE
+        ! ### non so farlo bene...
+        !do j=1,Nstar(i)
+        !   l=Nlist(i,j)
+        !   if (cluster(l).ne.cluster(i)) then
+        !      
+        !   endif
+        !enddo
+        dmin=9.9d99
+        do k=1,Nstar(i)
+           l=Nlist(i,k)
+           if (filter(l)) CYCLE
+           if (cluster(l).eq.cluster(i)) CYCLE
+           d=dist_mat(i,k)
+           if (d.lt.dmin) then
+              dmin=d
+              ig=l
+           endif
+        enddo
+        if (dmin.gt.9.8d99) CYCLE
+        extend=.true.
+        if (ig.eq.-1) then
+           id_err=12
+           RETURN
+        endif
+        do k=1,Nstar(ig) ! ### Now this is different from Alex's program
+           l=Nlist(ig,k)
+           if (cluster(l).eq.cluster(i)) then
+!              do j=1,Nstar(l)
+!              if (gDist(Nlist(i,k),ig).lt.dmin) then 
+              !dist_mat
+              if (dist_mat(ig,k).lt.dmin) then 
+                 extend=.false.
+                 EXIT
+              endif
+           endif
+        enddo
+        if (extend) then
+           if (Rho_prob(i).gt. Bord(cluster(i),cluster(ig))) then ! this if is useless? no it's not
+              Bord(cluster(i),cluster(ig))=Rho_prob(i)
+              Bord(cluster(ig),cluster(i))=Rho_prob(i)
+              Bord_err(cluster(i),cluster(ig))=Rho_err(i)
+              Bord_err(cluster(ig),cluster(i))=Rho_err(i)
+              eb(cluster(i),cluster(ig))=i
+              eb(cluster(ig),cluster(i))=i
+           endif
+        endif
+     enddo ! i=1,Nele
+
+     ! ### altro cluster (? non capisco sto commento che ho fatto...)
+     do i=1,Nclus-1
+        do j=i+1,Nclus
+           if (eb(i,j).ne.0) then
+              Bord(i,j)=Rho(eb(i,j))
+              Bord(j,i)=Rho(eb(i,j))
+           else
+              Bord(i,j)=0.
+              Bord(j,i)=0.
+           endif
+        enddo
+     enddo
+
+     deallocate (Rho_prob)
+     deallocate (iRho)
+     deallocate(ordRho)
+     ! Info per graph pre automatic merging
+     allocate (cent(Nclus))
+     allocate (cent_err(Nclus))
+     do i=1,Nclus
+        cent(i)=Rho(Centers(i))
+        cent_err(i)=Rho_err(Centers(i))
+        ! Modify centers in such a way that get more survival
+        do j=1,Nele
+           if (.not.filter(j)) then !
+              if ((cluster(j).eq.i).and.((Rho(j)-Rho_err(j)).gt.(cent(i)-cent_err(i)))) then !
+                 cent(i)=Rho(j)
+                 cent_err(i)=Rho_err(j) !
+              endif
+           endif
+        enddo
+     enddo
   else
-     RRA=RA(IR)
-     sord=s_order(IR)
-     RA(IR)=RA(1)
-     s_order(ir)=s_order(1)
-     IR=IR-1
-     if(IR.eq.1)then
-        RA(1)=RRA
-        s_order(1)=sord
-        return
-     end if
-  end if
-  I=L
-  J=L+L
-20 if(J.le.IR)then
-     if(J < IR)then
-        if(RA(J) < RA(J+1))  J=J+1
-     end if
-     if(RRA < RA(J))then
-        RA(I)=RA(J)
-        s_order(i)=s_order(j)
-        I=J; J=J+J
-     else
-        J=IR+1
-     end if
-     goto 20
-  end if
-  RA(I)=RRA
-  s_order(I)=sord
-  goto 10
-END subroutine HPSORT
+     Cluster(:)=1
+     id_err=9
+  endif
+  return
+
+contains
+  subroutine get_survivors()
+    integer :: i
+    Nsurv=0
+    do i=1,Nele
+       if (.not.filter(i)) then
+          Nsurv=Nsurv+1
+          survivors(Nsurv)=i
+       endif
+    enddo
+  end subroutine get_survivors
+
+end subroutine clustering
