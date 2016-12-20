@@ -70,6 +70,7 @@ def main():
     #pickle.dump(cl,fout,-1)
     #fout.close()
     cl.dump_cl(args.oname)
+    cl.dump_frames(args.oname)
 
 ####################### MAIN ########################
 
