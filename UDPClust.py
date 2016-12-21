@@ -146,8 +146,8 @@ class cluster_UDP:
         self.maxknn=496 ### TODO: this can become a parameter!
         if dmat==None:
             print 'Computing distances'
-            tree=cKDTree(self.trj_sub)
-            dmat,Nlist=tree.query(self.trj_sub,k=self.maxknn+1,n_jobs=self.n_jobs)
+            self.tree=cKDTree(self.trj_sub)
+            dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn+1,n_jobs=self.n_jobs)
             Nlist=Nlist[:,1:]
             dmat=dmat[:,1:]
             Nlist+=1
@@ -238,13 +238,20 @@ class cluster_UDP:
         self.centers_idx=np.array(self.centers_idx)*self.stride ### TODO check if this is correct!
         self.centers_rho=np.array(self.centers_rho)
 
-        # 4) assign densities of nearest-neighbours to the filtered points
+        # 4) assign densities of nearest-neighbours to the filtered points ### !!! TODO check this
         f1=np.where(self.filt_sub==1)[0]
         f0=np.where(self.filt_sub==0)[0]
-        for i in f1:
-            dists=distance.cdist(self.trj_sub[f0],np.array([self.trj_sub[i]]))[:,0]
-            imin=np.argmin(dists)
-            self.rho_sub[i]=self.rho_sub[f0[imin]]
+
+        frames1=self.trj_sub[f1]
+        frames0=self.trj_sub[f0]
+        if f1.shape>0: # you need this check because the parallel version crashes for empty input
+            tree0=cKDTree(frames0)
+            idxs=tree0.query(frames1,n_jobs=self.n_jobs)[1]
+            self.rho_sub[f1]=self.rho_sub[f0[idxs]]
+#        for i in f1:
+#            dists=distance.cdist(self.trj_sub[f0],np.array([self.trj_sub[i]]))[:,0]
+#            imin=np.argmin(dists)
+#            self.rho_sub[i]=self.rho_sub[f0[imin]]
 
 
         # 5) assign trj_tot points to the clusters
@@ -278,7 +285,7 @@ class cluster_UDP:
         t0=time.time()
 
         ### TODO: this can be stored just once at the beginning
-        tree=cKDTree(self.trj_sub) ### TODO add an option to turn this off and go bruteforce (may be quicker for d>20?)
+        #tree=cKDTree(self.trj_sub) ### TODO add an option to turn this off and go bruteforce (may be quicker for d>20?)
         lb=max(self.trj_sub.shape[0]/4,1) ### TODO check what's a smart optimal value for the denominator
 #        print lb
         Nb=self.Ntot/lb
@@ -296,7 +303,7 @@ class cluster_UDP:
 #            print ib,Nb,frames.shape
             if frames.shape[0]==0: # you need this check because the parallel version crashes for empty input
                 continue
-            idxs=tree.query(frames,n_jobs=self.n_jobs)[1] # this is freaking fast
+            idxs=self.tree.query(frames,n_jobs=self.n_jobs)[1] # this is freaking fast
 
             self.frame_cl[ib*lb:(ib+1)*lb]=self.frame_cl_sub[idxs]
             self.rho[ib*lb:(ib+1)*lb]=self.rho_sub[idxs]
