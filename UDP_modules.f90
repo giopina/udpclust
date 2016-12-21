@@ -31,9 +31,9 @@ contains
   !############################################
   !### MAIN CLUSTERING ALGORITHM SUBROUTINE ###
   !############################################
-  subroutine dp_advance(dist_mat,Cluster,Rho,filter,dimint,Nlist,Nele,id_err,sensibility)
+  subroutine dp_advance(dist_mat,Cluster,Rho,filter,dimint,Nlist,Nele,id_err,sensibility,maxknn)
     implicit none
-    integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
+    integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
     !#####################
     integer,intent(inout) :: id_err
     !!Global variables
@@ -69,7 +69,7 @@ contains
 
     id_err=0
 
-    call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar) ! ### my version
+    call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn) ! ### my version
     call clustering(id_err)                      ! get Clusters
     if(sensibility.gt.0.0) then
        call merging(id_err) ! Generate a new matrix without peaks within border error  
@@ -349,6 +349,8 @@ contains
             do k=1,Nstar(i)
                l=Nlist(i,k)
                if(filter(l)) CYCLE
+               if(cluster(l).ne.cluster(i)) CYCLE
+               d=9.9d99
                do jj=1,maxknn
                   j=Nlist(l,jj)
                   if (j.eq.ig) THEN
@@ -586,11 +588,11 @@ contains
     !
   end subroutine dp_advance
 
-  subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar)
+  subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
     use critfile
     implicit none
 
-    integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
+    integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
     integer,parameter :: minknn=8     ! minimum number of neighbours to explore
     !!Global variables
     !  real*8,intent(in) :: dist_mat(Nele*(Nele-1)/2)       ! Distance matrix !###

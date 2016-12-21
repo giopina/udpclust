@@ -143,11 +143,11 @@ class cluster_UDP:
 
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
-        maxknn=496 ### TODO: this can become a parameter!
+        self.maxknn=496 ### TODO: this can become a parameter!
         if dmat==None:
             print 'Computing distances'
             tree=cKDTree(self.trj_sub)
-            dmat,Nlist=tree.query(self.trj_sub,k=maxknn+1,n_jobs=self.n_jobs)
+            dmat,Nlist=tree.query(self.trj_sub,k=self.maxknn+1,n_jobs=self.n_jobs)
             Nlist=Nlist[:,1:]
             dmat=dmat[:,1:]
             Nlist+=1
@@ -571,10 +571,10 @@ class cluster_UDP:
         fh=open(name+'_cl_idx.dat','w')
         icl=0
         for clust in self.cl_idx:
-            icl+=1
             fh.write('Cluster %d:\n'%icl)
             for idx in clust:
                 fh.write('  %d\n'%idx)
+            icl+=1
         fh.close()
 
     def dump_frames(self,name):
