@@ -348,6 +348,7 @@ contains
                RETURN
             endif
             do k=1,Nstar(i)
+               if(filter(Nlist(i,k))) CYCLE
                if (cluster(Nlist(i,k)).eq.cluster(i)) then
                   if (gDist(Nlist(i,k),ig).lt.dmin) then 
                      extend=.false.
