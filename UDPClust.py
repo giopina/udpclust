@@ -153,7 +153,6 @@ class cluster_UDP:
             Nlist+=1
             Nlist=np.array(Nlist,dtype=np.int32,order='F')
             #dmat=np.array(dmat,order='F') ### TODO check if this is needed
-            print 'cacca'
 
 #            dmat=distance.pdist(self.trj_sub)
         else:

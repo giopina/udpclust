@@ -68,33 +68,14 @@ contains
     integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
     integer :: Nclus_m                  ! Number of Cluster merged
 
-!    real :: start,finish,rate
-    integer :: start,finish
-    real :: rate
-    integer :: cr
-    call system_clock(count_rate=cr)
-    rate=real(cr)
-
     id_err=0
-    open(unit=12345,file='cacca.tmp')
-    call system_clock(start)
     call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn) ! ### my version
-    call system_clock(finish)
-    write(12345,*) 'locknn took',(finish-start)/rate,'seconds'
-    call system_clock(start)
     call clustering(id_err)                      ! get Clusters
-    call system_clock(finish)
-    write(12345,*) 'clustering took',(finish-start)/rate,'seconds'
-    call system_clock(start)
     if(sensibility.gt.0.0) then
        call merging(id_err) ! Generate a new matrix without peaks within border error  
        Cluster=Cluster_m
-       call system_clock(finish)
-       write(12345,*) 'merging took',(finish-start)/rate,'seconds'
-       call system_clock(start)
     endif
     !    stop
-    close(12345)
     return
 
   contains
@@ -128,21 +109,9 @@ contains
       logical :: extend      
       logical :: viol,newass
       integer :: Nnoass
-
-      !real :: start,finish,start1,end1,timeinloop
-      integer :: start,finish
-      real :: rate
-      integer :: cr
-      call system_clock(count_rate=cr)
-      rate=real(cr)
       !!
       id_err=0
 
-
-      !    call system_clock(finish)
-      !    write(*,*) 'locknn took',(finish-start)/rate,'seconds'
-      call system_clock(start)
-      !      allocate (Cluster(Nele))
       !! Identify centers: delta>dc eqv. Max(rho) within dc
       Cluster(:)=0              !
       Nclus=0
@@ -159,10 +128,6 @@ contains
          enddo
       enddo
       !$OMP END PARALLEL DO
-
-      call system_clock(finish)
-      write(12345,*) 'clustering: first part took',(finish-start)/rate,'seconds'
-      call system_clock(start)
 
       ! copy of rho (not efficient, but clarifies the code) ### !!!
       allocate (Rho_copy(Nele))
@@ -191,10 +156,6 @@ contains
          endif
       enddo
       ! ###
-
-      call system_clock(finish)
-      write(12345,*) 'clustering: second part took',(finish-start)/rate,'seconds'
-      call system_clock(start)
 
 !      write(*,*) "$$$$$$$$$$$$",Nclus
 
@@ -267,10 +228,6 @@ contains
          !   endif
          !enddo
          !###
-
-         call system_clock(finish)
-         write(12345,*) 'clustering: third part took',(finish-start)/rate,'seconds'
-         call system_clock(start)
       
          ! Assign filtered to the same Cluster as its nearest unfiltered neighbour
          ! what happens if all neighbors are filtered?
@@ -356,10 +313,6 @@ contains
 
             endif
          enddo !endo while
-
-         call system_clock(finish)
-         write(12345,*) 'clustering: fourth part took',(finish-start)/rate,'seconds'
-         call system_clock(start)
 
 !         open(unit=24,file='clus_before.dat')
 !         do i=1,Nele
@@ -472,9 +425,6 @@ contains
          Cluster(:)=1
          id_err=9
       endif
-      call system_clock(finish)
-      write(12345,*) 'clustering: fifth part took',(finish-start)/rate,'seconds'
-      call system_clock(start)
 
       return
     end subroutine clustering
@@ -686,20 +636,8 @@ contains
     real*8 :: slope,yintercept
     real*8 :: temp_err,temp_rho
     real*8 :: dimreal
-    real :: start1,end1,timeinloop
-    integer :: start,finish
-    real :: rate
-    integer :: cr
-    call system_clock(count_rate=cr)
-    rate=real(cr)
-
 
     id_err=0
-
-!    call system_clock(finish)
-!    write(*,*) 'locknn took',(finish-start)/rate,'seconds'
-    call system_clock(start)
-
 
     limit=min(maxknn,nint(0.5*Nele))
     if (mod(limit,4).ne.0) then
@@ -733,7 +671,6 @@ contains
     !  allocate (iVols(Nele))
 
     !  open(unit=22,file="udp_info.tmp")
-    timeinloop=0.d0
     dimreal=FLOAT(dimint)
     !$OMP PARALLEL DO private(Vols,iVols,viol,k,n,rhg,dL,savNstar,Npart,fin,j,a,x,rh,rjk) &
     !$OMP & private(xmean,ymean,b,c,slope,rjfit,yintercept,xsum,ysum,x2sum,xysum,temp_rho,temp_err,partGood,i)
@@ -801,7 +738,6 @@ contains
              yintercept=rjfit
              ! Perform jacknife resampling for estimate the error (it includes statistical
              ! error and curvature error) 
-!             call cpu_time(start1)
              xsum=sum(x(:))
              ysum=sum(rh(:))
              x2sum=sum(x**2)
@@ -817,8 +753,6 @@ contains
                 a=b/c
                 rjk(n)=ymean-a*xmean
              enddo
-!             call cpu_time(end1)
-!             timeinloop=timeinloop+(end1-start1)
 
              rjaver=sum (rjk(:))/dfloat(Npart)
              temp_rho=dfloat(Npart)*rjfit-dfloat(Npart-1)*rjaver
@@ -845,11 +779,6 @@ contains
     enddo
     !$OMP END PARALLEL DO
     !  close(22)
-
-
-    call system_clock(finish)
-    write(12345,*) 'locknn: first part',(finish-start)/rate,'seconds;',timeinloop,'were spent for the fit'
-    call system_clock(start)
     
     !deallocate (Vols)
 
@@ -905,10 +834,6 @@ contains
           endif
        enddo
     enddo
-
-    call system_clock(finish)
-    write(12345,*) 'locknn: second part',(finish-start)/rate,'seconds'
-    call system_clock(start)
 
     return
 
