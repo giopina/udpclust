@@ -153,6 +153,7 @@ class cluster_UDP:
             Nlist+=1
             Nlist=np.array(Nlist,dtype=np.int32,order='F')
             #dmat=np.array(dmat,order='F') ### TODO check if this is needed
+            print 'cacca'
 
 #            dmat=distance.pdist(self.trj_sub)
         else:
@@ -285,8 +286,8 @@ class cluster_UDP:
         t0=time.time()
 
         ### TODO: this can be stored just once at the beginning
-        #tree=cKDTree(self.trj_sub) ### TODO add an option to turn this off and go bruteforce (may be quicker for d>20?)
-        lb=max(self.trj_sub.shape[0]/4,1) ### TODO check what's a smart optimal value for the denominator
+        #tree=cKDTree(self.trj_sub) ### TODO add an option to turn this off and go bruteforce (may be quicker for d>20? proably not)
+        lb=max(self.trj_sub.shape[0],1) ### TODO check what's a smart optimal value for the denominator
 #        print lb
         Nb=self.Ntot/lb
         for ib in range(Nb+1):

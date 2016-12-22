@@ -32,6 +32,7 @@ contains
   !### MAIN CLUSTERING ALGORITHM SUBROUTINE ###
   !############################################
   subroutine dp_advance(dist_mat,Cluster,Rho,filter,dimint,Nlist,Nele,id_err,sensibility,maxknn)
+    !$ use omp_lib
     implicit none
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
     !#####################
@@ -67,26 +68,33 @@ contains
     integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
     integer :: Nclus_m                  ! Number of Cluster merged
 
-    real :: start,finish
+!    real :: start,finish,rate
+    integer :: start,finish
+    real :: rate
+    integer :: cr
+    call system_clock(count_rate=cr)
+    rate=real(cr)
 
     id_err=0
-    call cpu_time(start)
+    open(unit=12345,file='cacca.tmp')
+    call system_clock(start)
     call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn) ! ### my version
-    call cpu_time(finish)
-    write(*,*) 'locknn took',finish-start,'seconds'
-    call cpu_time(start)
+    call system_clock(finish)
+    write(12345,*) 'locknn took',(finish-start)/rate,'seconds'
+    call system_clock(start)
     call clustering(id_err)                      ! get Clusters
-    call cpu_time(finish)
-    write(*,*) 'clustering took',finish-start,'seconds'
-    call cpu_time(start)
+    call system_clock(finish)
+    write(12345,*) 'clustering took',(finish-start)/rate,'seconds'
+    call system_clock(start)
     if(sensibility.gt.0.0) then
        call merging(id_err) ! Generate a new matrix without peaks within border error  
        Cluster=Cluster_m
-       call cpu_time(finish)
-       write(*,*) 'merging took',finish-start,'seconds'
-       call cpu_time(start)
+       call system_clock(finish)
+       write(12345,*) 'merging took',(finish-start)/rate,'seconds'
+       call system_clock(start)
     endif
     !    stop
+    close(12345)
     return
 
   contains
@@ -117,12 +125,23 @@ contains
       integer,allocatable :: eb(:,:)    ! Border elements
       !integer,allocatable :: survivors(:)  ! ###
       real*8 :: d,dmin
-      logical :: extend
-
+      logical :: extend      
       logical :: viol,newass
       integer :: Nnoass
+
+      !real :: start,finish,start1,end1,timeinloop
+      integer :: start,finish
+      real :: rate
+      integer :: cr
+      call system_clock(count_rate=cr)
+      rate=real(cr)
       !!
       id_err=0
+
+
+      !    call system_clock(finish)
+      !    write(*,*) 'locknn took',(finish-start)/rate,'seconds'
+      call system_clock(start)
       !      allocate (Cluster(Nele))
       !! Identify centers: delta>dc eqv. Max(rho) within dc
       Cluster(:)=0              !
@@ -131,6 +150,7 @@ contains
       allocate (Rho_prob(Nele))
       Rho_prob(:)=0.
       call get_survivors() ! ###
+      !$OMP PARALLEL DO private(i,j) shared(survivors,Rho_prob,Rho,Nsurv,Rho_err)
       do ii=1,Nsurv
          i=survivors(ii)
          do jj=1,Nsurv
@@ -138,6 +158,11 @@ contains
             Rho_prob(i)=Rho_prob(i)-log(1.d0+exp(2.*(Rho(j)-Rho(i))/sqrt(Rho_err(i)**2+Rho_err(j)**2)))
          enddo
       enddo
+      !$OMP END PARALLEL DO
+
+      call system_clock(finish)
+      write(12345,*) 'clustering: first part took',(finish-start)/rate,'seconds'
+      call system_clock(start)
 
       ! copy of rho (not efficient, but clarifies the code) ### !!!
       allocate (Rho_copy(Nele))
@@ -166,6 +191,10 @@ contains
          endif
       enddo
       ! ###
+
+      call system_clock(finish)
+      write(12345,*) 'clustering: second part took',(finish-start)/rate,'seconds'
+      call system_clock(start)
 
 !      write(*,*) "$$$$$$$$$$$$",Nclus
 
@@ -239,6 +268,10 @@ contains
          !enddo
          !###
 
+         call system_clock(finish)
+         write(12345,*) 'clustering: third part took',(finish-start)/rate,'seconds'
+         call system_clock(start)
+      
          ! Assign filtered to the same Cluster as its nearest unfiltered neighbour
          ! what happens if all neighbors are filtered?
          ! this can happen, at least in principle. What should I do then?
@@ -324,6 +357,9 @@ contains
             endif
          enddo !endo while
 
+         call system_clock(finish)
+         write(12345,*) 'clustering: fourth part took',(finish-start)/rate,'seconds'
+         call system_clock(start)
 
 !         open(unit=24,file='clus_before.dat')
 !         do i=1,Nele
@@ -436,6 +472,10 @@ contains
          Cluster(:)=1
          id_err=9
       endif
+      call system_clock(finish)
+      write(12345,*) 'clustering: fifth part took',(finish-start)/rate,'seconds'
+      call system_clock(start)
+
       return
     end subroutine clustering
     !
@@ -601,6 +641,7 @@ contains
 
   subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
     use critfile
+    !$ use omp_lib
     implicit none
 
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
@@ -644,13 +685,20 @@ contains
     integer :: Npart, partGood,savNstar,fin
     real*8 :: slope,yintercept
     real*8 :: temp_err,temp_rho
-    real :: start,finish,start1,end1,timeinloop
     real*8 :: dimreal
+    real :: start1,end1,timeinloop
+    integer :: start,finish
+    real :: rate
+    integer :: cr
+    call system_clock(count_rate=cr)
+    rate=real(cr)
+
+
     id_err=0
 
-!    call cpu_time(finish)
-!    write(*,*) 'locknn took',finish-start,'seconds'
-    call cpu_time(start)
+!    call system_clock(finish)
+!    write(*,*) 'locknn took',(finish-start)/rate,'seconds'
+    call system_clock(start)
 
 
     limit=min(maxknn,nint(0.5*Nele))
@@ -687,14 +735,16 @@ contains
     !  open(unit=22,file="udp_info.tmp")
     timeinloop=0.d0
     dimreal=FLOAT(dimint)
+    !$OMP PARALLEL DO private(Vols,iVols,viol,k,n,rhg,dL,savNstar,Npart,fin,j,a,x,rh,rjk) &
+    !$OMP & private(xmean,ymean,b,c,slope,rjfit,yintercept,xsum,ysum,x2sum,xysum,temp_rho,temp_err,partGood,i)
+    
     do i=1,Nele
        allocate (Vols(maxknn))
        allocate (iVols(maxknn))
        Vols(:)=9.9E9
        do j=1,maxknn !TODO:skip the first neighbour!
-          Vols(j)=prefactor*dist_mat(i,j)**dimint
+          Vols(j)=prefactor*dist_mat(i,j)**dimint          !Vols(j)=prefactor*dist_mat(i,j)**dimreal
        enddo
-
        !### get nstar     
        viol=.false.
        k=minknn
@@ -712,7 +762,6 @@ contains
        enddo
        Nstar(i)=k-4 ! ### ha senso?
        if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
-
        ! ### ##########################
        Rho_err(i)=-9.9d99
        rhg=dfloat(Nstar(i))/Vols(Nstar(i)) ! Rho without fit
@@ -720,17 +769,14 @@ contains
        savNstar=Nstar(i)
        Npart=4
        fin=Nstar(i)/2
-
        do while (Npart.le.fin)
           if (mod(Nstar(i),Npart).lt.(Nstar(i)/4)) then
-             if (mod(Nstar(i),Npart).ne.0) Nstar(i)=Nstar(i)-mod(Nstar(i),Npart)
-             
+             if (mod(Nstar(i),Npart).ne.0) Nstar(i)=Nstar(i)-mod(Nstar(i),Npart)             
              ! get inv rho of the partition
              allocate (x(Npart),rh(Npart),rjk(Npart))
              j=Nstar(i)/Npart
              a=dfloat(j)
              n=0
-
              do k=1,Npart
                 n=n+j
                 x(k)=dfloat(k)
@@ -740,7 +786,6 @@ contains
                    rh(k)=(Vols(n)-Vols(n-j))/a
                 endif
              enddo
-
              xmean=sum(x(:))/dfloat(Npart)
              ymean=sum(rh(:))/dfloat(Npart)
              b=0.
@@ -756,7 +801,7 @@ contains
              yintercept=rjfit
              ! Perform jacknife resampling for estimate the error (it includes statistical
              ! error and curvature error) 
-             call cpu_time(start1)
+!             call cpu_time(start1)
              xsum=sum(x(:))
              ysum=sum(rh(:))
              x2sum=sum(x**2)
@@ -772,8 +817,8 @@ contains
                 a=b/c
                 rjk(n)=ymean-a*xmean
              enddo
-             call cpu_time(end1)
-             timeinloop=timeinloop+(end1-start1)
+!             call cpu_time(end1)
+!             timeinloop=timeinloop+(end1-start1)
 
              rjaver=sum (rjk(:))/dfloat(Npart)
              temp_rho=dfloat(Npart)*rjfit-dfloat(Npart-1)*rjaver
@@ -798,12 +843,13 @@ contains
        !     write (22,'(i6,1x,i3,1x,3(es28.18,1x),i3)') i,Nstar(i),Rho(i),Rho_err(i),rhg,partGood
        deallocate (Vols,iVols)
     enddo
+    !$OMP END PARALLEL DO
     !  close(22)
 
 
-    call cpu_time(finish)
-    write(*,*) 'locknn: first part',finish-start,'seconds;',timeinloop,'were spent for the fit'
-    call cpu_time(start)
+    call system_clock(finish)
+    write(12345,*) 'locknn: first part',(finish-start)/rate,'seconds;',timeinloop,'were spent for the fit'
+    call system_clock(start)
     
     !deallocate (Vols)
 
@@ -860,9 +906,9 @@ contains
        enddo
     enddo
 
-    call cpu_time(finish)
-    write(*,*) 'locknn: second part',finish-start,'seconds'
-    call cpu_time(start)
+    call system_clock(finish)
+    write(12345,*) 'locknn: second part',(finish-start)/rate,'seconds'
+    call system_clock(start)
 
     return
 
@@ -934,658 +980,3 @@ contains
   END subroutine HPSORT
 
 end module dp_clustering
-
-!
-!
-!subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar)
-!  use critfile
-!  implicit none
-!
-!  integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
-!  integer,parameter :: minknn=8     ! minimum number of neighbours to explore
-!  !!Global variables
-!!  real*8,intent(in) :: dist_mat(Nele*(Nele-1)/2)       ! Distance matrix !###
-!  real*8,intent(in) :: dist_mat(Nele,maxknn)        !
-!  integer,intent(in) :: Nele                   ! Number of elements
-!  !    integer,intent(in) :: ND                     ! Number of distances
-!  integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
-!
-!  ! These variables are used in densities calculation and then passed to clustering
-!  real*8,intent(inout) :: Rho(Nele)        ! Density
-!  real*8,intent(inout) :: Rho_err(Nele)    ! Density error
-!  logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
-!  integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc ### dimension 2 maybe can be reduced but maybe not (before was =limit)
-!  integer,intent(inout) :: Nstar(Nele)   ! N. of NN taken for comp dens
-!
-!
-!  integer :: id_err
-!  !! Local variables
-!  integer :: limit
-!  integer :: i,j,k,m,n
-!  real*8 :: is,js,ks,ms,ns
-!  !    integer :: i1 ! ### my integer for loops
-!  integer :: kadd
-!  integer :: niter,nfilter
-!  real*8,allocatable :: Vols(:)
-!  integer,allocatable :: iVols(:)
-!  real*8, parameter :: pi=3.14159265359
-!  real*8 :: prefactor
-!  real*8 :: rhg,dL,rjaver,rjfit
-!  !    real*8,dimension(4) :: rh
-!  !    real*8 :: rjaver,rjfit
-!  real*8,allocatable :: x(:),rh(:),rjk(:)
-!  logical :: viol
-!  real*8 :: xmean,ymean,a,b,c            !  FIT
-!  !    real*8, dimension(4) :: x
-!  !    integer :: partit(4)
-!  integer :: Npart, partGood,savNstar,fin
-!  real*8 :: slope,yintercept
-!  real*8 :: temp_err,temp_rho
-!
-!  id_err=0
-!
-!  limit=min(maxknn,nint(0.5*Nele))
-!  if (mod(limit,4).ne.0) then
-!     limit=limit+4-mod(limit,4)
-!  endif
-!
-!  ! get prefactor for Volume calculation
-!  if (mod(dimint,2).eq.0) then
-!     k=dimint/2
-!     m=1
-!     do i=1,k
-!        m=m*i
-!     enddo
-!     prefactor=pi**k/(dfloat(m))
-!  else
-!     k=(dimint-1)/2
-!     ms=0.
-!     do i=1,k
-!        ms=ms+dlog(dfloat(i))
-!     enddo
-!     ns=ms
-!     do i=k+1,dimint
-!        ns=ns+dlog(dfloat(i))
-!     enddo
-!     prefactor=2.*dexp(ms-ns+k*dlog(4*pi))
-!  endif
-!
-!
-!
-!!  allocate (Vols(Nele))
-!!  allocate (iVols(Nele))
-!
-!  allocate (Vols(maxknn))
-!  allocate (iVols(maxknn))
-!!  open(unit=22,file="udp_info.tmp")
-!  do i=1,Nele
-!
-!     Vols(:)=9.9E9
-!     do j=1,maxknn !TODO:skip the first neighbour!
-!        Vols(j)=prefactor*dist_mat(i,j)**dimint
-!     enddo
-!!     write(*,*) Vols(1)
-!     !do j=1,Nele
-!     !   if (i.ne.j) then
-!     !      if(i.eq.j) then
-!     !         id_err=13
-!     !         RETURN
-!     !      endif
-!     !      Vols(j)=prefactor*(gDist(i,j))**dimint
-!     !   endif
-!     !enddo
-!!     call HPSORT(Nele,Vols,iVols) !sort Vols, iVols is the permutation
-!!     do j=1,limit
-!!        Nlist(i,j)=iVols(j)
-!!     enddo
-!
-!     !### get nstar     
-!     viol=.false.
-!     k=minknn
-!     n=1
-!     do while (.not.viol)
-!        rhg=dfloat(k)/Vols(k)
-!        dL=dabs(4.*(rhg*(Vols(k)-Vols(3*k/4)-Vols(k/4)))/dfloat(k))
-!        if (dL.gt.critV(n)) then
-!           viol=.true.
-!           cycle
-!        endif
-!        n=n+1
-!        k=k+4
-!        if (k.gt.limit) viol=.true.
-!     enddo
-!     Nstar(i)=k-4 ! ### ha senso?
-!     if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
-!     
-!     ! ### ##########################
-!     Rho_err(i)=-9.9d99
-!     rhg=dfloat(Nstar(i))/Vols(Nstar(i)) ! Rho without fit
-!     Rho(i)=rhg
-!     savNstar=Nstar(i)
-!     Npart=4
-!     fin=Nstar(i)/2
-!     do while (Npart.le.fin)
-!        if (mod(Nstar(i),Npart).lt.(Nstar(i)/4)) then
-!           if (mod(Nstar(i),Npart).ne.0) Nstar(i)=Nstar(i)-mod(Nstar(i),Npart)
-!           ! get inv rho of the partition
-!           allocate (x(Npart),rh(Npart),rjk(Npart))
-!           j=Nstar(i)/Npart
-!           a=dfloat(j)
-!           n=0
-!           do k=1,Npart
-!              n=n+j
-!              x(k)=dfloat(k)
-!              if (k.eq.1) then 
-!                 rh(k)=Vols(n)/a
-!              else
-!                 rh(k)=(Vols(n)-Vols(n-j))/a
-!              endif
-!           enddo
-!           xmean=sum(x(:))/dfloat(Npart)
-!           ymean=sum(rh(:))/dfloat(Npart)
-!           b=0.
-!           c=0.
-!           do k=1,Npart
-!              a=x(k)-xmean
-!              b=b+a*(rh(k)-ymean)
-!              c=c+a*a
-!           enddo
-!           a=b/c
-!           slope=a
-!           rjfit=ymean-a*xmean
-!           yintercept=rjfit
-!           ! Perform jacknife resampling for estimate the error (it includes statistical
-!           ! error and curvature error) 
-!           do n=1,Npart
-!              xmean=(sum(x(:))-x(n))/dfloat(Npart-1)
-!              ymean=(sum(rh(:))-rh(n))/dfloat(Npart-1)
-!              b=0.
-!              c=0.
-!              do k=1,Npart
-!                 if (k.ne.n) then
-!                    a=x(k)-xmean
-!                    b=b+a*(rh(k)-ymean)
-!                    c=c+a*a
-!                 endif
-!              enddo
-!              a=b/c
-!              rjk(n)=ymean-a*xmean
-!           enddo
-!           rjaver=sum (rjk(:))/dfloat(Npart)
-!           temp_rho=dfloat(Npart)*rjfit-dfloat(Npart-1)*rjaver
-!           temp_err=0.
-!           do k=1,Npart
-!              temp_err=temp_err+(rjk(k)-rjaver)**2
-!           enddo
-!           temp_err=dfloat(Npart-1)*temp_err/dfloat(Npart)
-!           temp_rho=1./temp_rho
-!           temp_err=max(temp_rho/sqrt(float(Nstar(i))),temp_rho*temp_rho*sqrt(temp_err))
-!           if (temp_err.gt.Rho_err(i)) then
-!              Rho(i)=temp_rho
-!              Rho_err(i)=temp_err
-!              partGood=Npart
-!           endif
-!           deallocate (x,rh,rjk)
-!        endif
-!        Npart=Npart+1
-!        Nstar(i)=savNstar
-!     enddo
-!     ! ### print
-!!     write (22,'(i6,1x,i3,1x,3(es28.18,1x),i3)') i,Nstar(i),Rho(i),Rho_err(i),rhg,partGood
-!  enddo
-!!  close(22)
-!  deallocate (Vols,iVols)
-!  !deallocate (Vols)
-!
-!  ! Filter with neighbours density (Iterative version)
-!  filter(:)=.false.
-!  viol=.true.
-!  niter=0
-!  do i=1,Nele
-!     if ((Rho(i).lt.0).or.(Rho_err(i).gt.Rho(i)).or.(Rho(i).gt.1D308)) then
-!        filter(i)=.true.
-!     endif
-!  enddo
-!
-!  do while (viol)
-!     niter=niter+1
-!     viol=.false.
-!     nfilter=0
-!     do i=1,Nele
-!        ! compute average density in the neighborhood and standard dev.
-!        if (.not.filter(i)) then
-!           ! ### come puo' essere Rho minore di zero...!?
-!           if ((Rho(i).lt.0).or.(Rho_err(i).gt.Rho(i))) then
-!              filter(i)=.true.
-!              viol=.true.
-!           else
-!              a=0.
-!              b=0.
-!              n=0
-!              ! ### questo prob si puo' fare senza loop ma bisogna pensarci (c'e' da considerare i filter...)
-!              do j=1,Nstar(i) 
-!                 if (.not.filter(Nlist(i,j))) then
-!                    a=a+Rho(Nlist(i,j))
-!                    b=b+Rho(Nlist(i,j))**2
-!                    n=n+1
-!                 endif
-!              enddo
-!              if (n.gt.0) then
-!                 a=a/dfloat(n)              ! average
-!                 if (a*a.le.b/float(n)) then
-!                    b=dsqrt(b/dfloat(n)-a*a)    ! std. dev.
-!                    if (((Rho(i)-a)).gt.sqrt(b*b+Rho_err(i)*Rho_err(i))) then
-!                       filter(i)=.true.
-!                       viol=.true.
-!                    endif
-!                 endif
-!              else
-!                 filter(i)=.true.
-!                 viol=.true.
-!              endif
-!           endif
-!        else
-!           nfilter=nfilter+1
-!        endif
-!     enddo
-!  enddo
-!  return
-!
-!
-!!contains
-!!  !
-!!  real*8 function gDist(i,j)
-!!    integer :: i,j,l,m
-!!    integer*8 :: k
-!!    l=max(i,j)
-!!    m=min(i,j)
-!!    k=(m-1)*Nele-(m*m+m)/2+l
-!!    gDist=dist_mat(k)
-!!    return
-!!  end function gDist
-!!  !
-!end subroutine get_densities
-!  
-!  
-!!  subroutine dp_advance(dist_mat,Cluster,Rho,filter,dimint,Nele,ND,id_err,sensibility)
-!subroutine clustering(id_err,Cluster,sensibility,dist_mat,Nele,Rho,Rho_err,filter,Nlist,Nstar)
-!  !(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar)
-!  implicit none
-!
-!
-!  integer,intent(inout) :: id_err
-!
-!
-!
-!  integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
-!  integer,parameter :: minknn=8     ! minimum number of neighbours to explore
-!  !!Global variables
-!  real*8,intent(in) :: dist_mat(Nele,maxknn)        !
-!  integer,intent(in) :: Nele                   ! Number of elements
-!  !integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
-!
-!  ! These variables are used in densities calculation and then passed to clustering
-!  real*8,intent(in) :: Rho(Nele)        ! Density
-!  real*8,intent(in) :: Rho_err(Nele)    ! Density error
-!  logical,intent(in) :: filter(Nele)  ! Pnt with anomalous dens
-!  integer,intent(in) :: Nlist(Nele,maxknn) ! Neighbour list within maxknn
-!  integer,intent(in) :: Nstar(Nele)   ! N. of NN taken for comp dens
-!
-!  real*8, intent(in) :: sensibility
-!
-!  ! These variables are used in densities calculation and then passed to clustering
-!  !    real*8,allocatable :: dc(:)         ! Dist for density calculation
-!  integer :: survivors(Nele) ! ###
-!  integer :: Nsurv           ! ###
-!
-!  integer,allocatable :: Centers(:) ! Centers of the peaks !may become intent inout
-!  integer,intent(inout) :: Cluster(Nele) ! Cluster ID for the element
-!  integer :: Nclus                  ! Number of Cluster
-!  ! These seems to be used for merging ### should I define them here or later?
-!  real*8,allocatable :: Bord(:,:)     ! Border Densities
-!  real*8,allocatable :: Bord_err(:,:) ! Border Densities Error
-!
-!  real*8,allocatable :: cent(:)       ! Center Density
-!  real*8,allocatable :: cent_err(:)   ! Center Error
-!  ! Underscore m implies data after automatic mergin
-!  integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
-!  integer :: Nclus_m                  ! Number of Cluster merged
-!
-!  !! Local variables
-!  integer :: i,j,k
-!  integer :: ii,jj,kk
-!  integer :: ig
-!  integer :: l
-!  logical :: idmax
-!  real*8,allocatable :: Rho_prob(:)   ! Probability of having maximum Rho
-!  real*8,allocatable :: Rho_copy(:)
-!  integer,allocatable :: iRho(:),ordRho(:)
-!  integer,allocatable :: eb(:,:)    ! Border elements
-!  !integer,allocatable :: survivors(:)  ! ###
-!  real*8 :: d,dmin
-!  logical :: extend
-!  logical :: viol
-!  !!
-!  id_err=0
-!  !      allocate (Cluster(Nele))
-!  !! Identify centers: delta>dc eqv. Max(rho) within dc
-!  Cluster(:)=0              !
-!  Nclus=0
-!  ! Here I compute the probability of having density rho, g_i
-!  allocate (Rho_prob(Nele))
-!  Rho_prob(:)=0.
-!  call get_survivors() ! ###
-!  do ii=1,Nsurv
-!     i=survivors(ii)
-!     do jj=1,Nsurv
-!        j=survivors(jj)
-!        Rho_prob(i)=Rho_prob(i)-log(1.d0+exp(2.*(Rho(j)-Rho(i))/sqrt(Rho_err(i)**2+Rho_err(j)**2)))
-!     enddo
-!  enddo
-!
-!  ! copy of rho (not efficient, but clarifies the code) ### !!!
-!  allocate (Rho_copy(Nele))
-!  allocate (iRho(Nele))
-!  Rho_copy(:)=-Rho_prob(:)
-!  call HPSORT(Nele,Rho_copy,iRho) ! iRho contains the order in density (iRho(1) is the element with highest Rho...)
-!  deallocate (Rho_copy)      
-!  allocate (ordRho(Nele))
-!  do i=1,Nele
-!     ordRho(iRho(i))=i                 ! ordRho is the complementary of iRho. Given an element, ordRho returns its order in density
-!  enddo
-!
-!  ! ###
-!  ! Now I'm getting the clusters
-!  do ii=1,Nsurv
-!     i=survivors(ii)
-!     idmax=.true.
-!     j=1
-!     do while (idmax .and. (j.le.Nstar(i)))
-!        if ((ordRho(i).gt.ordRho(Nlist(i,j))).and.(.not.filter(Nlist(i,j))))  idmax=.false. ! ### I could probably also change this
-!        j=j+1
-!     enddo
-!     if (idmax) then
-!        Nclus=Nclus+1
-!        Cluster(i)=Nclus
-!     endif
-!  enddo
-!  ! ###
-!
-!
-!  allocate (Centers(Nclus))
-!  do i=1,Nele
-!     if (Cluster(i).ne.0) then
-!        Centers(Cluster(i))=i
-!     endif
-!  enddo
-!  if (Nclus.gt.1) then
-!     ! if (Nclus.lt.1) then   
-!     !   Cluster(:)=1
-!     !   id_err=9
-!     !   RETURN
-!     !endif
-!     ! Assign not filtered
-!     ! ### change it with survivors
-!     ! ### TODO: change this to look only at the points inside Nstar (there has to be an unfiltered point with higher density, otherwise the considered point would be filtered OR a center
-!     do i=1,Nele
-!        ig=-1
-!!        j=iRho(i)
-!        if (.not.filter(i).and.Cluster(i).eq.0) then
-!           dmin=9.9d99
-!           !do k=1,i-1
-!           do k=1,Nstar(i)
-!              l=Nlist(i,k) ! ### questa cosa mi da davvero un vantaggio?
-!              if (.not.filter(l)) then
-!                 if (dist_mat(i,k).le.dmin) then
-!                    ig=l
-!                    dmin=dist_mat(i,k) ! ### change this may improve
-!                 endif
-!              endif
-!           enddo
-!           if (ig.eq.-1) then
-!              id_err=12
-!              RETURN
-!           else
-!              Cluster(i)=Cluster(ig)
-!           endif
-!        endif
-!     enddo
-!     !do ii=1,Nsurv
-!     !   i=survivors(ii)
-!     !   ig=-1
-!     !   j=iRho(ordRho(i))
-!     !   write(*,*) ii,i,ordRho(i),j,cluster(j)
-!     !   !if (.not.filter(j).and.Cluster(j).eq.0) then
-!     !   if (Cluster(j).eq.0) then
-!     !      dmin=9.9E29
-!     !      do k=1,i-1 ! ### qui devo pensare a come farlo bene con survivors
-!     !         l=iRho(k) ! ### questa cosa mi da davvero un vantaggio?
-!     !         if (.not.filter(l)) then
-!     !            if (gDist(j,l).le.dmin) then
-!     !               ig=l
-!     !               dmin=gDist(j,l) !
-!     !            endif
-!     !         endif
-!     !      enddo
-!     !      if (ig.eq.-1) then
-!     !         id_err=12
-!     !         RETURN
-!     !      else
-!     !         Cluster(j)=Cluster(ig)
-!     !      endif
-!     !   endif
-!     !enddo
-!     !###
-!
-!     ! Assign filtered to the same Cluster as its nearest unfiltered neighbour
-!     ! what happens if all neighbors are filtered?
-!     ! this can happen, at least in principle. What should I do then?
-!     ! option 1: assign the point to the same cluster of the closest filtered point (you should do this in the end, but it will depend on the order you consider the points...
-!     ! option 2: ?
-!     viol=.false.
-!     do i=1,Nele
-!        ig=-1
-!        if (Cluster(i).eq.0) then
-!           dmin=9.9d99
-!           do k=1,Nstar(i) ! find the min d in not filt elements
-!              l=Nlist(i,k)
-!              if ((Cluster(l).ne.0).and.(.not.filter(l))) then
-!                 !d=gDist(i,l)
-!                 d=dist_mat(i,k)
-!                 if (d.le.dmin) then
-!                    dmin=d
-!                    ig=l
-!                 endif
-!              endif
-!           enddo
-!        endif
-!        if (ig.ne.-1) then
-!!           id_err=12
-!!           RETURN
-!!        endif
-!        Cluster(i)=Cluster(ig)
-!        else
-!           viol=.true.
-!        endif
-!     enddo
-!     do while (viol) !### TODO: check if this stops or get stuck. It should not happen
-!                     !### TODO: change this so does not depend on the order
-!        viol=.false.
-!        do i=1,Nele
-!           ig=-1
-!           if (Cluster(i).eq.0) then
-!              !              if (dmin.gt.9.8d99) then !### what if all the neighbours are filtered?
-!              do k=1,Nstar(i) ! find the min d in not filter elements
-!                 j=Nlist(i,k)
-!                 if ((Cluster(j).ne.0)) then
-!                    d=dist_mat(i,k)
-!                    if (d.le.dmin) then
-!                       dmin=d
-!                       ig=j
-!                    endif
-!                 endif
-!              enddo
-!              if (ig.ne.-1) then
-!                 !           id_err=12
-!                 !           RETURN
-!                 !        endif
-!                 Cluster(i)=Cluster(ig)
-!              else
-!                 viol=.true.
-!              endif
-!              !if (ig.eq.-1) then
-!              !   id_err=12
-!              !   RETURN
-!              !endif
-!              !           Cluster(i)=Cluster(ig)
-!           endif
-!        enddo
-!     enddo !endo while
-!     ! find border densities
-!     allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
-!     Bord(:,:)=-9.9D99
-!     Bord_err(:,:)=0.
-!     eb(:,:)=0
-!
-!     ! ### questo si puo' fare in maniera migliore? Magari senza dc che viene usato solo qua e non sembra utile.
-!     !do i=1,Nele ! si puo' fare il loop solo su i filter?
-!     !   if (.not.filter(i)) then ! what if it is not filtered?
-!     !      dmin=9.9d99
-!     !      do j=1,Nele
-!     !         if (.not.filter(j)) then
-!     !            if (cluster(j).ne.cluster(i)) then
-!     !               d=gDist(i,j)
-!     !               if (d.lt.dmin) then
-!     !                  dmin=d
-!     !                  ig=j
-!     !               endif
-!     !            endif
-!     !         endif
-!     !      enddo
-!     !      if (dmin.le.dc(i)) then
-!     !         iref=i
-!     !         k=0
-!     !         extend=.true.
-!     !         do while ( (k.lt.Nstar(i)).and.extend)
-!     !            k=k+1
-!     !            if (cluster(Nlist(i,k)).eq.cluster(i)) then
-!     !               if (gDist(Nlist(i,k),ig).lt.dmin) extend=.false.
-!     !            endif
-!     !         enddo
-!     !         if (extend) then
-!     !            if (Rho_prob(iref).gt. Bord(cluster(i),cluster(ig))) then
-!     !               Bord(cluster(i),cluster(ig))=Rho_prob(iref)
-!     !               Bord(cluster(ig),cluster(i))=Rho_prob(iref)
-!     !               Bord_err(cluster(i),cluster(ig))=Rho_err(iref)
-!     !               Bord_err(cluster(ig),cluster(i))=Rho_err(iref)
-!     !               eb(cluster(i),cluster(ig))=iref
-!     !               eb(cluster(ig),cluster(i))=iref
-!     !            endif
-!     !         endif
-!     !      endif !dmin.le.dc(i)
-!     !   endif !filter
-!     !enddo ! i=1,Nele
-!     ! ######################3
-!     ! ### my version
-!     do i=1,Nele ! si puo' fare il loop solo su i filter?
-!        ig=-1
-!        if (filter(i)) CYCLE
-!        ! ### non so farlo bene...
-!        !do j=1,Nstar(i)
-!        !   l=Nlist(i,j)
-!        !   if (cluster(l).ne.cluster(i)) then
-!        !      
-!        !   endif
-!        !enddo
-!        dmin=9.9d99
-!        do k=1,Nstar(i)
-!           l=Nlist(i,k)
-!           if (filter(l)) CYCLE
-!           if (cluster(l).eq.cluster(i)) CYCLE
-!           d=dist_mat(i,k)
-!           if (d.lt.dmin) then
-!              dmin=d
-!              ig=l
-!           endif
-!        enddo
-!        if (dmin.gt.9.8d99) CYCLE
-!        extend=.true.
-!        if (ig.eq.-1) then
-!           id_err=12
-!           RETURN
-!        endif
-!        do k=1,Nstar(ig) ! ### Now this is different from Alex's program
-!           l=Nlist(ig,k)
-!           if (cluster(l).eq.cluster(i)) then
-!!              do j=1,Nstar(l)
-!!              if (gDist(Nlist(i,k),ig).lt.dmin) then 
-!              !dist_mat
-!              if (dist_mat(ig,k).lt.dmin) then 
-!                 extend=.false.
-!                 EXIT
-!              endif
-!           endif
-!        enddo
-!        if (extend) then
-!           if (Rho_prob(i).gt. Bord(cluster(i),cluster(ig))) then ! this if is useless? no it's not
-!              Bord(cluster(i),cluster(ig))=Rho_prob(i)
-!              Bord(cluster(ig),cluster(i))=Rho_prob(i)
-!              Bord_err(cluster(i),cluster(ig))=Rho_err(i)
-!              Bord_err(cluster(ig),cluster(i))=Rho_err(i)
-!              eb(cluster(i),cluster(ig))=i
-!              eb(cluster(ig),cluster(i))=i
-!           endif
-!        endif
-!     enddo ! i=1,Nele
-!
-!     ! ### altro cluster (? non capisco sto commento che ho fatto...)
-!     do i=1,Nclus-1
-!        do j=i+1,Nclus
-!           if (eb(i,j).ne.0) then
-!              Bord(i,j)=Rho(eb(i,j))
-!              Bord(j,i)=Rho(eb(i,j))
-!           else
-!              Bord(i,j)=0.
-!              Bord(j,i)=0.
-!           endif
-!        enddo
-!     enddo
-!
-!     deallocate (Rho_prob)
-!     deallocate (iRho)
-!     deallocate(ordRho)
-!     ! Info per graph pre automatic merging
-!     allocate (cent(Nclus))
-!     allocate (cent_err(Nclus))
-!     do i=1,Nclus
-!        cent(i)=Rho(Centers(i))
-!        cent_err(i)=Rho_err(Centers(i))
-!        ! Modify centers in such a way that get more survival
-!        do j=1,Nele
-!           if (.not.filter(j)) then !
-!              if ((cluster(j).eq.i).and.((Rho(j)-Rho_err(j)).gt.(cent(i)-cent_err(i)))) then !
-!                 cent(i)=Rho(j)
-!                 cent_err(i)=Rho_err(j) !
-!              endif
-!           endif
-!        enddo
-!     enddo
-!  else
-!     Cluster(:)=1
-!     id_err=9
-!  endif
-!  return
-!
-!contains
-!  subroutine get_survivors()
-!    integer :: i
-!    Nsurv=0
-!    do i=1,Nele
-!       if (.not.filter(i)) then
-!          Nsurv=Nsurv+1
-!          survivors(Nsurv)=i
-!       endif
-!    enddo
-!  end subroutine get_survivors
-!
-!end subroutine clustering
