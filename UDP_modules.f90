@@ -627,6 +627,7 @@ contains
     real*8,allocatable :: x(:),rh(:),rjk(:)
     logical :: viol
     real*8 :: xmean,ymean,a,b,c            !  FIT
+    real*8 :: xsum,ysum,x2sum,xysum
     !    real*8, dimension(4) :: x
     !    integer :: partit(4)
     integer :: Npart, partGood,savNstar,fin
@@ -747,18 +748,17 @@ contains
              yintercept=rjfit
              ! Perform jacknife resampling for estimate the error (it includes statistical
              ! error and curvature error) 
+             xsum=sum(x(:))
+             ysum=sum(rh(:))
+             x2sum=sum(x**2)
+             xysum=sum(x*rh)
              do n=1,Npart
-                xmean=(sum(x(:))-x(n))/dfloat(Npart-1)
-                ymean=(sum(rh(:))-rh(n))/dfloat(Npart-1)
-                b=0.
-                c=0.
-                do k=1,Npart
-                   if (k.ne.n) then
-                      a=x(k)-xmean
-                      b=b+a*(rh(k)-ymean)
-                      c=c+a*a
-                   endif
-                enddo
+                xmean=(xsum-x(n))/dfloat(Npart-1)
+                ymean=(ysum-rh(n))/dfloat(Npart-1)
+                c=x2sum-x(n)**2
+                c=c-xmean*xmean*(Npart-1)
+                b=xysum-x(n)*rh(n)
+                b=b-xmean*ymean*(Npart-1)
                 a=b/c
                 rjk(n)=ymean-a*xmean
              enddo
