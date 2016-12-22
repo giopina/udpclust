@@ -67,13 +67,24 @@ contains
     integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
     integer :: Nclus_m                  ! Number of Cluster merged
 
-    id_err=0
+    real :: start,finish
 
+    id_err=0
+    call cpu_time(start)
     call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn) ! ### my version
+    call cpu_time(finish)
+    write(*,*) 'locknn took',finish-start,'seconds'
+    call cpu_time(start)
     call clustering(id_err)                      ! get Clusters
+    call cpu_time(finish)
+    write(*,*) 'clustering took',finish-start,'seconds'
+    call cpu_time(start)
     if(sensibility.gt.0.0) then
        call merging(id_err) ! Generate a new matrix without peaks within border error  
        Cluster=Cluster_m
+       call cpu_time(finish)
+       write(*,*) 'merging took',finish-start,'seconds'
+       call cpu_time(start)
     endif
     !    stop
     return
@@ -627,13 +638,20 @@ contains
     real*8,allocatable :: x(:),rh(:),rjk(:)
     logical :: viol
     real*8 :: xmean,ymean,a,b,c            !  FIT
+    real*8 :: xsum,ysum,x2sum,y2sum,xysum
     !    real*8, dimension(4) :: x
     !    integer :: partit(4)
     integer :: Npart, partGood,savNstar,fin
     real*8 :: slope,yintercept
     real*8 :: temp_err,temp_rho
-
+    real :: start,finish,start1,end1,timeinloop
+    real*8 :: dimreal
     id_err=0
+
+!    call cpu_time(finish)
+!    write(*,*) 'locknn took',finish-start,'seconds'
+    call cpu_time(start)
+
 
     limit=min(maxknn,nint(0.5*Nele))
     if (mod(limit,4).ne.0) then
@@ -666,29 +684,16 @@ contains
     !  allocate (Vols(Nele))
     !  allocate (iVols(Nele))
 
-    allocate (Vols(maxknn))
-    allocate (iVols(maxknn))
     !  open(unit=22,file="udp_info.tmp")
+    timeinloop=0.d0
+    dimreal=FLOAT(dimint)
     do i=1,Nele
-
+       allocate (Vols(maxknn))
+       allocate (iVols(maxknn))
        Vols(:)=9.9E9
        do j=1,maxknn !TODO:skip the first neighbour!
           Vols(j)=prefactor*dist_mat(i,j)**dimint
        enddo
-       !     write(*,*) Vols(1)
-       !do j=1,Nele
-       !   if (i.ne.j) then
-       !      if(i.eq.j) then
-       !         id_err=13
-       !         RETURN
-       !      endif
-       !      Vols(j)=prefactor*(gDist(i,j))**dimint
-       !   endif
-       !enddo
-       !     call HPSORT(Nele,Vols,iVols) !sort Vols, iVols is the permutation
-       !     do j=1,limit
-       !        Nlist(i,j)=iVols(j)
-       !     enddo
 
        !### get nstar     
        viol=.false.
@@ -715,14 +720,17 @@ contains
        savNstar=Nstar(i)
        Npart=4
        fin=Nstar(i)/2
+
        do while (Npart.le.fin)
           if (mod(Nstar(i),Npart).lt.(Nstar(i)/4)) then
              if (mod(Nstar(i),Npart).ne.0) Nstar(i)=Nstar(i)-mod(Nstar(i),Npart)
+             
              ! get inv rho of the partition
              allocate (x(Npart),rh(Npart),rjk(Npart))
              j=Nstar(i)/Npart
              a=dfloat(j)
              n=0
+
              do k=1,Npart
                 n=n+j
                 x(k)=dfloat(k)
@@ -732,6 +740,7 @@ contains
                    rh(k)=(Vols(n)-Vols(n-j))/a
                 endif
              enddo
+
              xmean=sum(x(:))/dfloat(Npart)
              ymean=sum(rh(:))/dfloat(Npart)
              b=0.
@@ -747,21 +756,27 @@ contains
              yintercept=rjfit
              ! Perform jacknife resampling for estimate the error (it includes statistical
              ! error and curvature error) 
+             call cpu_time(start1)
+             xsum=sum(x(:))
+             ysum=sum(rh(:))
+             x2sum=sum(x**2)
+             xysum=sum(x*rh)
+             !y2sum=sum(rh**2)
              do n=1,Npart
-                xmean=(sum(x(:))-x(n))/dfloat(Npart-1)
-                ymean=(sum(rh(:))-rh(n))/dfloat(Npart-1)
+                xmean=(xsum-x(n))/dfloat(Npart-1)
+                ymean=(ysum-rh(n))/dfloat(Npart-1)
                 b=0.
                 c=0.
-                do k=1,Npart
-                   if (k.ne.n) then
-                      a=x(k)-xmean
-                      b=b+a*(rh(k)-ymean)
-                      c=c+a*a
-                   endif
-                enddo
+                c=x2sum-x(n)**2
+                c=c-xmean*xmean*(Npart-1)
+                b=xysum-x(n)*rh(n)
+                b=b-xmean*ymean*(Npart-1)
                 a=b/c
                 rjk(n)=ymean-a*xmean
              enddo
+             call cpu_time(end1)
+             timeinloop=timeinloop+(end1-start1)
+
              rjaver=sum (rjk(:))/dfloat(Npart)
              temp_rho=dfloat(Npart)*rjfit-dfloat(Npart-1)*rjaver
              temp_err=0.
@@ -783,9 +798,15 @@ contains
        enddo
        ! ### print
        !     write (22,'(i6,1x,i3,1x,3(es28.18,1x),i3)') i,Nstar(i),Rho(i),Rho_err(i),rhg,partGood
+       deallocate (Vols,iVols)
     enddo
     !  close(22)
-    deallocate (Vols,iVols)
+
+
+    call cpu_time(finish)
+    write(*,*) 'locknn: first part',finish-start,'seconds;',timeinloop,'were spent for the fit'
+    call cpu_time(start)
+    
     !deallocate (Vols)
 
     ! Filter with neighbours density (Iterative version)
@@ -840,6 +861,11 @@ contains
           endif
        enddo
     enddo
+
+    call cpu_time(finish)
+    write(*,*) 'locknn: second part',finish-start,'seconds'
+    call cpu_time(start)
+
     return
 
 
