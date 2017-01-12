@@ -44,7 +44,7 @@ protected:
     int max_knn;
     VecBool filter;
     VecBool survivors;
-    VecDouble dist_mat;
+    VecDouble2d dist_mat;
     size_t Nele;
     VecInt Nlist;   // Neighbour list within dc
     VecInt Nstar;   // N. of NN taken for comp dens
