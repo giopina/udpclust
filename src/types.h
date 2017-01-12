@@ -8,26 +8,15 @@
 #include <vector>
 #include <cstddef> // for size_t...
 
-typedef std::vector<bool> VecBool;
-typedef std::vector<int> VecInt;
-typedef std::vector<double> VecDouble;
-
-template <class T>
-class MyArray1d {
-    std::vector<T> data;
-public:
-    MyArray1d(size_t n) { data.reserve(n); }
-};
-
 template <class T>
 class MyArray2D
 {
     std::vector<T> data;
-    size_t sizeX, sizeY;
+    size_t rows, cols;
 public:
-    MyArray2D(size_t rows, size_t cols):sizeX(rows), sizeY(cols) { data.reserve(rows*cols); }
-    const T& at(int x, int y) const { return data.at(y + x * sizeY); }
-    T& at(int x, int y) { return data.at(y + x * sizeY); }
+    MyArray2D(size_t rows, size_t cols) : rows(rows), cols(cols) { data.reserve(rows*cols); }
+    const T& at(int x, int y) const { return data.at(y + x * cols); }
+    T& at(int x, int y) { return data.at(y + x * cols); }
 
     T& operator()(size_t i, size_t j) { return at(i, j ); }
 
@@ -35,11 +24,25 @@ public:
         data.assign(data.size(), value);
     }
 
-// wrap other methods you need of std::vector here
+    size_t size() const { return data.size(); }
 };
+
+
+typedef std::vector<bool> VecBool;
+typedef std::vector<int> VecInt;
+typedef std::vector<double> VecDouble;
 
 typedef MyArray2D<double> VecDouble2d;
 typedef MyArray2D<int> VecInt2d;
+
+
+// exception
+/*
+class udp_exception: std::runtime_error {
+public:
+    udp_exception(int error_code) : std::runtime_error(  )
+};
+*/
 
 
 #endif //UDPCLUST_TYPES_H
