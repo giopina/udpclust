@@ -116,7 +116,7 @@ protected:
 void dp_advance(double* dist_mat, double* Rho, VecBool filter,
                 int Nele, int ND, int dimint, float sensibility, int maxknn) {
     // create class
-    instance = UDPClustering();
+    auto instance = UDPClustering();
     /*
 
     call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar) ! ### my version

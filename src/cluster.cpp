@@ -2,8 +2,10 @@
 // Created by marscher on 1/11/17.
 //
 
-#include <udpclust.h>
-#include <heap_sort.h>
+#include <limits>
+
+#include "udpclust.h"
+#include "heap_sort.h"
 
 
 // mark survivors, based on filter vector
@@ -20,9 +22,9 @@ int UDPClust::get_survivors() {
 
 // This function allows to get the distances in a matrix like style
 double UDPClust::gDist(size_t i, size_t j) {
-    int i, j, k, l, m;
-    l = max(i, j);
-    m = min(i, j);
+    size_t k, l, m;
+    l = std::max(i, j);
+    m = std::min(i, j);
     k = (m - 1) * Nele - (m * m + m) / 2 + l;
     return dist_mat[k];
 }
@@ -270,7 +272,7 @@ void UDPClustering::clustering() {
     bool extend;
 
     int Nclus = 0;
-    int Nsurv = self->get_survivors();
+    int Nsurv = get_survivors();
 
     /*
      do ii=1,Nsurv
@@ -311,7 +313,6 @@ void UDPClustering::clustering() {
         Rho_copy[i] -= Rho_prob[i];
     }
     //  ordRho is the complementary of iRho. Given an element, ordRho returns its order in density
-    std::vector<size_t> ordRho;
     for (size_t i ; i < Nele; ++i) {
         ordRho[iRho[i]] = i;
     }
@@ -359,7 +360,6 @@ void UDPClustering::clustering() {
          endif
       enddo
      */
-    std::vector<int> Centers(Nclus);
     for (i=0; i < Nele; ++i) {
         if (Cluster[i] != 0) {
             Centers[Cluster[i]] = i;
@@ -427,11 +427,11 @@ void UDPClustering::clustering() {
      Bord_err(:,:)=0.
      eb(:,:)=0
      */
-    std::vector<vector<double>> Bord(Nclus, Nclus);
-    std::vector<vector<double>> Bord_err(Nclus, Nclus);
-    std::vector<vector<int>> Bord(Nclus, Nclus);
+    VecDouble2d Bord(Nclus, Nclus));
+    VecDouble2d Bord_err(Nclus, Nclus);
+    VecInt2d eb(Nclus, Nclus);
 
-    double dmin = std::numerical_limits<double>::max();
+    dmin = std::numeric_limits<double>::max();
     /*do i=1,Nele ! si puo' fare il loop solo su i filter?*/
     for (i = 0; i < Nele; ++i) {
         /*
@@ -471,7 +471,7 @@ void UDPClustering::clustering() {
            RETURN
         endif
          */
-        if (dmin > std::numerical_limits<double>::max() - 1) continue;
+        if (dmin > std::numeric_limits<double>::max() - 1) continue;
         extend = true;
         if (ig == -1) {
             throw IG_UNDEFINED;
@@ -533,7 +533,7 @@ void UDPClustering::clustering() {
      */
     for (int i =0; i < Nclus -1; ++i) {
         for (int j = i+1; j < Nclus; ++j) {
-            if (eb[i,j] != 0) {
+            if (eb[i, j] != 0) {
                 Bord[i, j] = Bord[j, i] = Rho[eb[i,j]];
             } else {
                 Bord[i,j] = Bord[j, i] = 0;
