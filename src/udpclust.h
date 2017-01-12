@@ -9,7 +9,7 @@
 
 class UDPClustering {
 public:
-    UDPClustering(std::vector<double>& dist_mat, int max_knn) :
+    UDPClustering(std::vector<double> &dist_mat, int max_knn) :
             Nele(dist_mat.size()) {
 
     }
@@ -26,8 +26,8 @@ protected:
     // mark survivors, based on filter vector
     int get_survivors() {
         int Nsurv = 0;
-        for (size_t i =0; i < survivors.size(); ++i) {
-            if (! filter[i]) {
+        for (size_t i = 0; i < survivors.size(); ++i) {
+            if (!filter[i]) {
                 Nsurv += 1;
                 survivors[Nsurv] = i;
             }
@@ -35,16 +35,7 @@ protected:
         return Nsurv;
     }
 
-    // This function allows to get the distances in a matrix like style
-    double gDist(size_t i, size_t j) {
-        int i, j, k, l, m;
-        l = max(i, j);
-        m = min(i, j);
-        k = (m - 1) * Nele - (m * m + m) / 2 + l;
-        return dist_mat[k];
-    }
-
-
+    double gDist(size_t i, size_t j);
 };
 
 /*############################################
