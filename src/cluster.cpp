@@ -5,6 +5,19 @@
 #include <udpclust.h>
 #include <heap_sort.h>
 
+
+// mark survivors, based on filter vector
+int UDPClust::get_survivors() {
+    int Nsurv = 0;
+    for (size_t i = 0; i < survivors.size(); ++i) {
+        if (!filter[i]) {
+            Nsurv += 1;
+            survivors[Nsurv] = i;
+        }
+    }
+    return Nsurv;
+}
+
 // This function allows to get the distances in a matrix like style
 double UDPClust::gDist(size_t i, size_t j) {
     int i, j, k, l, m;
@@ -248,23 +261,15 @@ void UDPClustering::clustering() {
     size_t ig;
     size_t l;
     bool idmax;
-    std::vector<double> Rho_prob(Nele);  // Probability of having maximum Rho
-    std::vector<double> Rho_copy;
-    integer, allocatable::iRho(:),ordRho(:)
-    integer, allocatable::eb(:,:)    !Border
-    elements
-    //!integer,allocatable :: survivors(:)  ! ### // member var
+    VecDouble Rho_prob(Nele);  // Probability of having maximum Rho
+    VecDouble Rho_copy;
+    VecInt iRho, ordRho;
+    VecInt Centers;
+    //integer, allocatable::eb(:,:)    !Border   elements
     double d, dmin;
     bool extend;
 
-    // Neighbour list within dc
-    std::vector<int> Nlist(NEle, maxknn);
-    // N. of NN taken for comp dens
-    std::vector<int> Nstar(Nele);
-
     int Nclus = 0;
-
-
     int Nsurv = self->get_survivors();
 
     /*
@@ -277,8 +282,6 @@ void UDPClustering::clustering() {
       enddo
      */
     // Here I compute the probability of having density rho, g_i
-    std::vector<double> Rho_prob(Nele);
-
     for (ii = 0; ii < Nsurv; ++ii) {
         i = survivors[ii];
         for (jj = 0; jj < Nsurv; ++jj) {
@@ -300,6 +303,7 @@ void UDPClustering::clustering() {
          ordRho(iRho(i))=i                 ! ordRho is the complementary of iRho. Given an element, ordRho returns its order in density
       enddo
      */
+     //TODO: init iRho!
     Rho_copy = Rho; // copy
     heap_sort::sort(Rho_copy.pointer, Rho_copy.size());
 
@@ -311,7 +315,6 @@ void UDPClustering::clustering() {
     for (size_t i ; i < Nele; ++i) {
         ordRho[iRho[i]] = i;
     }
-
 
     /**
      *   ! ###
@@ -332,7 +335,7 @@ void UDPClustering::clustering() {
       enddo
       ! ###
      */
-    for (ii =0; ii < Nsurv; ++i) {
+    for (ii =0; ii < Nsurv; ++ii) {
         i = survivors[ii];
         idmax = true;
         j = 1;
@@ -348,9 +351,245 @@ void UDPClustering::clustering() {
         }
     }
 
-}
+    /*
+      allocate (Centers(Nclus))
+      do i=1,Nele
+         if (Cluster(i).ne.0) then
+            Centers(Cluster(i))=i
+         endif
+      enddo
+     */
+    std::vector<int> Centers(Nclus);
+    for (i=0; i < Nele; ++i) {
+        if (Cluster[i] != 0) {
+            Centers[Cluster[i]] = i;
+        }
+    }
+
+    /*
+    if (Nclus.gt.1) then
+     ! Assign not filtered
+     ! ### change it with survivors
+     do i=1,Nele
+        ig=-1
+        j=iRho(i)
+        if (.not.filter(j).and.Cluster(j).eq.0) then
+           dmin=9.9d99
+           do k=1,i-1
+              l=iRho(k) ! ### questa cosa mi da davvero un vantaggio?
+              if (.not.filter(l)) then
+                 if (gDist(j,l).le.dmin) then
+                    ig=l
+                    dmin=gDist(j,l) !
+                 endif
+              endif
+           enddo
+           if (ig.eq.-1) then
+              id_err=12
+              RETURN
+           else
+              Cluster(j)=Cluster(ig)
+           endif
+        endif
+     enddo
+     */
+    /// assign not filtered
+    /// TODO: change it with survivors
+    if (Nclus <= 1) {
+        // TODO: assign to -1;
+        Cluster[:] = -1;
+        throw ONLY_ONE_CLUSTER;
+    }
+    for (i =0; i < Nele; ++i) {
+        ig = -1;
+        j = iRho[i];
+        if (!filter[j] && Cluster[j] == 0) {
+            dmin = std::numeric_limits<double>::max();
+            for (k = 1; k < i - 1; ++k) {
+                l = iRho[k];
+                if (!filter[l] && gDist(j, l) <= dmin) {
+                    ig = l;
+                    dmin = gDist(j, l);
+                }
+            }
+            if (ig == -1) {
+                throw IG_UNDEFINED;
+            } else {
+                Cluster[j] = Cluster[ig];
+            }
+        }
+    }
+
+    /*
+     ! find border densities
+     allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
+     Bord(:,:)=-9.9D99
+     Bord_err(:,:)=0.
+     eb(:,:)=0
+     */
+    std::vector<vector<double>> Bord(Nclus, Nclus);
+    std::vector<vector<double>> Bord_err(Nclus, Nclus);
+    std::vector<vector<int>> Bord(Nclus, Nclus);
+
+    double dmin = std::numerical_limits<double>::max();
+    /*do i=1,Nele ! si puo' fare il loop solo su i filter?*/
+    for (i = 0; i < Nele; ++i) {
+        /*
+        ig=-1
+        if (filter(i)) CYCLE
+        dmin=9.9d99
+        do j=1,Nstar(i)
+           l=Nlist(i,j)
+           if (filter(l)) CYCLE
+           if (cluster(l).eq.cluster(i)) CYCLE
+           d=gDist(i,l)
+           if (d.lt.dmin) then
+              dmin=d
+              ig=l
+           endif
+        enddo
+         */
+        ig = -1;
+        if (filter[i]) continue;
+        for (j = 0; j < Nstar[i]; ++j) {
+            l = Nlist[i, j];
+            if (filter[l]) continue;
+            if (cluster[l] == cluster[i]) continue;
+
+            d = gDist(i, l);
+            if (d < dmin) {
+                dmin = d;
+                ig = l;
+            }
+        }
+
+        /*
+        if (dmin.gt.9.8d99) CYCLE
+        extend=.true.
+        if (ig.eq.-1) then
+           id_err=12
+           RETURN
+        endif
+         */
+        if (dmin > std::numerical_limits<double>::max() - 1) continue;
+        extend = true;
+        if (ig == -1) {
+            throw IG_UNDEFINED;
+        }
+
+        /*
+        do k=1,Nstar(i)
+           if(filter(Nlist(i,k))) CYCLE
+           if (cluster(Nlist(i,k)).eq.cluster(i)) then
+              if (gDist(Nlist(i,k),ig).lt.dmin) then
+                 extend=.false.
+                 EXIT
+              endif
+           endif
+        enddo
+         */
+        for (k=0; k < Nstar[i]; ++k) {
+            if (filter[Nlist[i, k]]) continue;
+            if (cluster[Nlist[i, k]] == cluster[i]) {
+                extend = false;
+                break;
+            }
+        }
+
+        /*
+         if (extend) then
+               if (Rho_prob(i).gt. Bord(cluster(i),cluster(ig))) then ! this if is useless? no it's not
+                  Bord(cluster(i),cluster(ig))=Rho_prob(i)
+                  Bord(cluster(ig),cluster(i))=Rho_prob(i)
+                  Bord_err(cluster(i),cluster(ig))=Rho_err(i)
+                  Bord_err(cluster(ig),cluster(i))=Rho_err(i)
+                  eb(cluster(i),cluster(ig))=i
+                  eb(cluster(ig),cluster(i))=i
+               endif
+            endif
+         */
+        if (extend && Rho_prob[i] > Bord[cluster[i], cluster[ig]]) {
+            Bord[cluster[i], cluster[ig]] = Rho_prob[i];
+            Bord[cluster[ig], cluster[i]] = Rho_prob[i];
+
+            Bord_err[cluster[i], cluster[ig]] = Rho_err[i];
+            Bord_err[cluster[ig], cluster[i]] = Rho_err[i];
+        }
+    } //  enddo ! i=1,Nele
 
 /*
+         ! ### altro cluster (? non capisco sto commento che ho fatto...)
+         do i=1,Nclus-1
+            do j=i+1,Nclus
+               if (eb(i,j).ne.0) then
+                  Bord(i,j)=Rho(eb(i,j))
+                  Bord(j,i)=Rho(eb(i,j))
+               else
+                  Bord(i,j)=0.
+                  Bord(j,i)=0.
+               endif
+            enddo
+         enddo
+     */
+    for (int i =0; i < Nclus -1; ++i) {
+        for (int j = i+1; j < Nclus; ++j) {
+            if (eb[i,j] != 0) {
+                Bord[i, j] = Bord[j, i] = Rho[eb[i,j]];
+            } else {
+                Bord[i,j] = Bord[j, i] = 0;
+            }
+        }
+    }
+
+    /*
+         deallocate (Rho_prob)
+         deallocate (iRho)
+         deallocate(ordRho)
+         ! Info per graph pre automatic merging
+         allocate (cent(Nclus))
+         allocate (cent_err(Nclus))
+         do i=1,Nclus
+            cent(i)=Rho(Centers(i))
+            cent_err(i)=Rho_err(Centers(i))
+            ! Modify centers in such a way that get more survival
+            do j=1,Nele
+               if (.not.filter(j)) then
+                  if ((cluster(j).eq.i).and.((Rho(j)-Rho_err(j)).gt.(cent(i)-cent_err(i)))) then
+                     cent(i)=Rho(j)
+                     cent_err(i)=Rho_err(j)
+                  endif
+               endif
+            enddo
+         enddo
+      else
+         Cluster(:)=1
+         id_err=9
+      endif
+      return
+    end subroutine clustering
+     */
+
+    /// Info per graph pre automatic merging
+    cent.reserve(Nclus);
+    cent_err.reserve(Nclus);
+
+    for(i=0; i < Nclus; ++i) {
+        cent[i] = Rho[Centers[i]];
+        cent_err[i] = Rho_err[Centers[i]];
+        /// Modify centers in such a way that get more survival
+        for (j=0; j < Nele; ++j) {
+            if(! filter[j] && (cluster[j] == i) && (Rho[j] - Rho_err[j] > (cent[i] - cent_err[i]) )) {
+                cent[i] = Rho[j];
+                cent_err[i] = Rho_err[j];
+            }
+        }
+    }
+
+}
+
+void UDPClustering::get_densities() {
+    /*
+     * *
  *   subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar)
     use critfile
     implicit none
@@ -599,7 +838,5 @@ void UDPClustering::clustering() {
 
   end subroutine get_densities
  */
-
-void UDPClustering::get_densities() {
 
 }
