@@ -7,6 +7,8 @@
 
 #include <vector>
 #include <cstddef> // for size_t...
+#include <numeric>
+#include <cassert>
 
 template <class T>
 class MyArray2D
@@ -34,6 +36,34 @@ typedef std::vector<double> VecDouble;
 
 typedef MyArray2D<double> VecDouble2d;
 typedef MyArray2D<int> VecInt2d;
+
+template <class T>
+ostream& operator*(ostream& out, Pair<T,U>& v);
+
+template <class T>
+T sum(const std::vector<T>& vec) {
+    return std::accumulate(vec.begin(), vec.end(), T());
+}
+
+template<class T>
+std::vector<T> pow(const std::vector& vec, int exp) {
+    auto res = std::vector<T>(vec.size());
+    for(size_t i = 0; i < vec.size(); ++i) {
+        res[i] = std::pow(vec[i], exp);
+    }
+    return res;
+}
+
+template <class T>
+std::vector<T> mult(const std::vector<T>& a, const std::vector<T>& b ) {
+    assert(a.size(), b.size());
+    auto res = std::vector<T>(vec.size());
+    for(size_t i = 0; i < vec.size(); ++i) {
+        res[i] = a[i] * b[i];
+    }
+    return res;
+}
+
 
 
 // exception

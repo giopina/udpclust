@@ -50,6 +50,8 @@ protected:
     size_t min_knn;
 
     VecDouble Rho; // density for all points
+    VecDouble Rho_err;
+
     VecInt Cluster; // cluster ids
 
     VecBool filter;
