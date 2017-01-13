@@ -80,7 +80,8 @@ protected:
     VecDouble2d dist_mat;
     double sensibility;
 
-    size_t Nele;
+    size_t Nele; // number of input points
+    size_t Nclus; // number of clusters found; set by the clustering method.
     VecInt2d Nlist;   // Neighbour list within dc
     VecInt Nstar;   // N. of NN taken for comp dens
 
@@ -100,7 +101,7 @@ protected:
     /// clustering routine
     void clustering();
 
-    void merging(int Nclus);
+    void merging();
 
     // mark survivors, based on filter vector
     int get_survivors();

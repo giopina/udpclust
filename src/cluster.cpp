@@ -35,7 +35,7 @@ void UDPClustering::clustering() {
     double d, dmin;
     bool extend;
 
-    int Nclus = 0;
+    Nclus = 0;
     // Here I compute the probability of having density rho, g_i
     int Nsurv = get_survivors();
     Rho_prob = 0;
@@ -323,9 +323,6 @@ void UDPClustering::get_densities() {
         prefactor = 2 * std::exp(ms - ns + k * std::log(4 * pi));
     }
 
-    // TODO: what for?
-    double dimreal = (float) dimint;
-
     for (i = 0; i < Nele; ++i) {
         iVols = 0; // reset all elements = -1
         for (j = 0; j < max_knn; ++j) { // TODO:skip the first neighbour!
@@ -337,7 +334,7 @@ void UDPClustering::get_densities() {
         while (!viol) {
             rhg = k / Vols[k];
             dL = std::abs(4 * (rhg * (Vols[k] - Vols[3 * k / 4]) / double(k)));
-            if (dL > critV[n]) { //FIXME: critV is not initialized nor passed the fortran routine...
+            if (dL > critV[n]) {
                 viol = true;
                 continue;
             }
@@ -419,13 +416,10 @@ void UDPClustering::get_densities() {
                     Rho[i] = Rho_err[i] = temp_rho;
                     partGood = Npart;
                 }
-            } // if(Nstar[i] % Npart < Nstar[i] /4 )
+            } // end: if(Nstar[i] % Npart < Nstar[i] /4 )
             Npart += 1;
             Nstar[i] = savNstar;
         } // while
-        // TODO :free memory...
-/*        delete Vols;
-        delete iVols;*/
     }
 
     /// Filter with neighbours density (Iterative version)
@@ -465,7 +459,7 @@ void UDPClustering::get_densities() {
     }
 }
 
-void UDPClustering::merging(int Nclus) {
+void UDPClustering::merging() {
     int Nbarr = (Nclus * Nclus - Nclus) / 2; /// number of contacts between clusters
     int i, j, k, n, l, alive, dead;
     double c1, c2, b12;
