@@ -234,7 +234,21 @@ void UDPClustering::get_densities(int dimint) {
         k = min_knn;
         n = 1;
         while(! viol) {
-
+            rhg = k / Vols[k];
+            dL = std::abs(4* (rhg*(Vols[k]-Vols[3*k/4])/float(k)));
+            if (dL > critV[n]) {
+                viol = true;
+                break;
+            }
+            n+=1;
+            k+=4;
+            if (k > limit){
+                viol=true;
+            }
+        }
+        Nstar[i] = k-4;
+        if (Nstar[i] < min_knn) {
+            Nstar[i] = min_knn;
         }
     }
 }
