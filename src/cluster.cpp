@@ -182,29 +182,32 @@ void UDPClustering::clustering() {
 
 }
 
+
+/**
+ * calculates the densities for all points (Nele) and the errors on that (Rho and Rho_err).
+ * Sets the filtered points (eg. outliers)
+ * @param dimint
+ */
 void UDPClustering::get_densities(int dimint) {
-    /*
-     * *
- *   subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar)
-*/
     int i, j, k, m, n;
     double is, js, ks, ms, ns;
 
     const double pi = std::acos(-1);
     double prefactor;
-    double xmean, ymean;
 
     double slope;
     double temp_rho, temp_err;
-    VecDouble Vols(max_knn);
-    VecDouble x, rh, rjk;
-    VecInt iVols(max_knn);
+
     bool viol = false;
     double xmean, ymean, a, b, c;          // FIT
     double xsum, ysum, x2sum, xysum;
 
     int Npart, partGood, savNstar, fin;
     double rhg, dL, rjaver, rjfit;
+
+    VecDouble Vols(max_knn);
+    VecDouble x, rh, rjk;
+    VecInt iVols(max_knn);
 
 
     size_t limit = std::min(max_knn, (int) 0.5 * Nele);
@@ -339,5 +342,42 @@ void UDPClustering::get_densities(int dimint) {
         } // while
         Vols.clear();
         iVols.clear();
+    }
+
+    /// Filter with neighbours density (Iterative version)
+    filter.assign(filter.size(), false);
+    viol = true;
+    //niter = 0;
+    for (i=0; i <Nele; ++i) {
+        if(Rho[i] < 0 || Rho_err[i] > Rho[i] || Rho[i] > 1E308) {
+            filter[i] = true;
+        }
+    }
+
+    while (viol) {
+        viol = false;
+        if (! filter[i]) {
+            for (i = 0; i < Nele; ++i) {
+                a = b = n = 0;
+                for (j = 0; j < Nstar[i]; ++j) {
+                    a += Rho[Nlist(i, j)];
+                    b += Rho[Nlist(i, j)]* Rho[Nlist(i, j)];
+                    n += 1;
+                }
+                if (n > 0) {
+                    a /= (double) n; // average
+                    if (a * a <= b / (double) n) {
+                        b = std::sqrt(b / -a * a);
+                        if ((Rho[i] - a) > std::sqrt(b * b + Rho_err[i] * Rho_err[i])) {
+                            filter[i] = true;
+                            viol = true;
+                        }
+                    }
+                } else {
+                    filter[i] = true;
+                    viol = true;
+                }
+            }
+        }
     }
 }

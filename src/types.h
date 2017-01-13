@@ -37,8 +37,6 @@ typedef std::vector<double> VecDouble;
 typedef MyArray2D<double> VecDouble2d;
 typedef MyArray2D<int> VecInt2d;
 
-template <class T>
-ostream& operator*(ostream& out, Pair<T,U>& v);
 
 template <class T>
 T sum(const std::vector<T>& vec) {
@@ -46,7 +44,7 @@ T sum(const std::vector<T>& vec) {
 }
 
 template<class T>
-std::vector<T> pow(const std::vector& vec, int exp) {
+std::vector<T> pow(const std::vector<T>& vec, int exp) {
     auto res = std::vector<T>(vec.size());
     for(size_t i = 0; i < vec.size(); ++i) {
         res[i] = std::pow(vec[i], exp);
@@ -56,9 +54,9 @@ std::vector<T> pow(const std::vector& vec, int exp) {
 
 template <class T>
 std::vector<T> mult(const std::vector<T>& a, const std::vector<T>& b ) {
-    assert(a.size(), b.size());
-    auto res = std::vector<T>(vec.size());
-    for(size_t i = 0; i < vec.size(); ++i) {
+    assert(a.size() == b.size());
+    auto res = std::vector<T>(a.size());
+    for(size_t i = 0; i < a.size(); ++i) {
         res[i] = a[i] * b[i];
     }
     return res;
