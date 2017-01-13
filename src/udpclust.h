@@ -6,6 +6,8 @@
 #define UDPCLUST_UDPCLUST_H
 
 #include "types.h"
+namespace udpclust {
+
 
 enum errors {
    /* if self.id_err==1 :   print "Select case error for distance type" #obsolete?
@@ -23,7 +25,7 @@ enum errors {
     elif self.id_err==13: print "Error in distance: There are identical points!"
     else : print "unrecognized error"*/
     ONLY_ONE_CLUSTER=9,
-    ONLY_ONE_CLUSTER_AFTER_MERGING=9,
+    ONLY_ONE_CLUSTER_AFTER_MERGING=10,
     ERROR_IN_ASSIGNATION=11,
     IG_UNDEFINED=12
 };
@@ -35,17 +37,20 @@ public:
      * @param dist_mat distance matrix
      * @param max_knn  maximum nearest neighbours
      */
-    UDPClustering(const VecDouble2d &dist_mat, size_t max_knn) :
-            Nele(dist_mat.size()),
+    UDPClustering(double* dist_mat, size_t Nele, size_t dimint, double sensibility, size_t max_knn) :
+            dist_mat(dist_mat, Nele, max_knn),
+            Nele(Nele),
+            dimint(dimint),
             min_knn(8),
             max_knn(max_knn),
-            dist_mat(dist_mat),
-            Nlist(Nele),
+            sensibility(sensibility),
+            Nlist(Nele, max_knn),
             Nstar(Nele)
     {
     }
 
 protected:
+    size_t dimint;
     size_t max_knn;
     size_t min_knn;
 
@@ -55,9 +60,10 @@ protected:
     VecInt Cluster; // cluster ids
 
     VecBool filter;
-    VecBool survivors;
+    VecInt survivors;
 
     VecDouble2d dist_mat;
+    double sensibility;
 
     size_t Nele;
     VecInt2d Nlist;   // Neighbour list within dc
@@ -65,6 +71,9 @@ protected:
 
     VecDouble cent; //  Center Density
     VecDouble cent_err; // Center error
+
+    VecDouble2d Bord; // border
+    VecDouble2d Bord_err;
 
     VecInt Cluster_m; //  Cluster ID for the element
     int Nclus_m; //  Number of Cluster merged
@@ -75,6 +84,8 @@ protected:
     /// clustering routine
     void clustering();
 
+    void merging(int Nclus);
+
     // mark survivors, based on filter vector
     int get_survivors();
 
@@ -84,61 +95,25 @@ protected:
 /*############################################
 !### MAIN CLUSTERING ALGORITHM SUBROUTINE ###
 !############################################*/
-/** Arguments:
- * dist_mat,Cluster,Rho,filter,dimint,Nele,ND,id_err,sensibility
+int dp_advance(int*, double* dist_mat, int dimint, int Nele, double* rho, double* rho_err, char* filter, int* Nlist, float sensibility, int maxknn) {
+    try {
+        // create class
+        auto instance = UDPClustering(dist_mat, );
+        instance.get_densities();
+        instance.clustering(); // perform clustering
+        if (sensibility > 0.0) {
+            return instance.merging(); //  Generate a new matrix without peaks within border error
 
-    integer,intent(inout) :: id_err
-    !!Global variables
-    real*8,intent(in) :: dist_mat(ND)       ! Distance matrix !###
-    integer,intent(in) :: Nele                   ! Number of elements
-    integer,intent(in) :: ND                     ! Number of distances
-    integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
-    real*8, intent(in) :: sensibility
-
-    integer,parameter :: maxknn=496   ! maximum number of neighbours to explore
-    ! These variables are used in densities calculation and then passed to clustering
-    real*8,intent(inout) :: Rho(Nele)        ! Density
-    real*8 :: Rho_err(Nele)    ! Density error
-!    real*8,allocatable :: dc(:)         ! Dist for density calculation
-    logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
-    integer :: Nlist(Nele,maxknn) ! Neighbour list within dc
-    integer :: Nstar(Nele)   ! N. of NN taken for comp dens
-
-    integer :: survivors(Nele) ! ###
-    integer :: Nsurv           ! ###
-
-    integer,allocatable :: Centers(:) ! Centers of the peaks
-    integer,intent(inout) :: Cluster(Nele) ! Cluster ID for the element
-    integer :: Nclus                  ! Number of Cluster
-    ! These seems to be used for merging
-    real*8,allocatable :: Bord(:,:)     ! Border Densities
-    real*8,allocatable :: Bord_err(:,:) ! Border Densities Error
-
-    real*8,allocatable :: cent(:)       ! Center Density
-    real*8,allocatable :: cent_err(:)   ! Center Error
-    ! Underscore m implies data after automatic mergin
-    integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
-    integer :: Nclus_m                  ! Number of Cluster merged
- */
-// dp_advance has some subroutines, so is dp_advance actually a class in c++?
-void dp_advance(double* dist_mat, double* Rho, VecBool filter,
-                int Nele, int ND, int dimint, float sensibility, int maxknn) {
-    // create class
-    auto instance = UDPClustering();
-    /*
-
-    call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar) ! ### my version
-    call clustering(id_err)                      ! get Clusters
-    if(sensibility.gt.0.0) then
-       call merging(id_err) ! Generate a new matrix without peaks within border error
-       Cluster=Cluster_m
-    endif
-    !    stop
-    return
-     */
-    instance.get_densities();
-    instance.clustering(dens);
+        }
+    } catch (int val) {
+        return val;
+    }
 }
 
+// overload with no args, returns the instance.
+UDPClustering dp_advance() {
+
+}
+}
 
 #endif //UDPCLUST_UDPCLUST_H
