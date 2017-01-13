@@ -55,8 +55,8 @@ void UDPClustering::clustering() {
         iRho[i] = i;
     }
     // iRho is the array which sorts Rho descending
-    std::sort(iRho.data(), iRho.data() + iRho.size(), [](int a, int b) {
-        return Rho[a] > Rho[b];
+    std::sort(iRho.data(), iRho.data() + iRho.size(), [this](int a, int b) {
+        return this->Rho[a] > this->Rho[b];
     });
     std::cout << "Rho[iRho[0]]=" << Rho[iRho[0]] << "Rho[iRho[iRho.size()-1]] = " << Rho[iRho[iRho.size() - 1]]
               << std::endl;
@@ -186,17 +186,11 @@ void UDPClustering::clustering() {
     VecDouble2d Bord_err(Nclus, Nclus);
     VecInt2d eb(Nclus, Nclus);
 
-    dmin = std::numeric_limits<double>::max();
-    for (
-            i = 0;
-            i < Nele;
-            ++i) {
+    for (i = 0; i < Nele; ++i) {
         ig = -1;
-        if (filter[i]) continue;
-        for (
-                j = 0;
-                j < Nstar[i];
-                ++j) {
+        dmin = std::numeric_limits<double>::max();
+        //if (filter[i]) continue;
+        for (j = 0; j < Nstar[i]; ++j) {
             l = Nlist(i, j);
             if (filter[l]) continue;
             if (Cluster[l] == Cluster[i]) continue;
@@ -208,80 +202,64 @@ void UDPClustering::clustering() {
             }
         }
 
-        if (dmin >
-
-            std::numeric_limits<double>::max()
-
-            - 1)
-            continue;
+        if (dmin > std::numeric_limits<double>::max() - 1) continue;
         extend = true;
         if (ig == -1) {
-            throw
-                    IG_UNDEFINED;
+            throw IG_UNDEFINED;
         }
 
-        for (
-                k = 0;
-                k < Nstar[i];
-                ++k) {
-            if (filter[Nlist[i, k]]) continue;
-            if (Cluster[Nlist[i, k]] == Cluster[i]) {
+        for (k = 0; k < Nstar[i]; ++k) {
+            l = Nlist(i, k);
+            if (filter[l]) continue;
+            if (Cluster[l] == Cluster[i]) {
+                extend = false;
+                break;
+            }
+            d = std::numeric_limits<double>::max();
+            for (jj = 0; jj < max_knn; ++jj) {
+                j = Nlist(l, jj);
+                if (j == ig) {
+                    d = dist_mat(l, jj);
+                    break;
+                }
+            }
+            if (d < dmin) {
                 extend = false;
                 break;
             }
         }
+        //TODO: why the heck the cluster variable is lowercase in fortran?
+        if (extend && Rho_prob[i] > Bord(Cluster[i], Cluster[ig])) {
+            Bord(Cluster[i], Cluster[ig]) = Rho_prob[i];
+            Bord(Cluster[ig], Cluster[i]) = Rho_prob[i];
 
-        if (
-                extend && Rho_prob[i]
-                          > Bord[Cluster[i], Cluster[ig]]) {
-            Bord[Cluster[i], Cluster[ig]] = Rho_prob[i];
-            Bord[Cluster[ig], Cluster[i]] = Rho_prob[i];
+            Bord_err(Cluster[i], Cluster[ig]) = Rho_err[i];
+            Bord_err(Cluster[ig], Cluster[i]) = Rho_err[i];
 
-            Bord_err[Cluster[i], Cluster[ig]] = Rho_err[i];
-            Bord_err[Cluster[ig], Cluster[i]] = Rho_err[i];
+            eb(Cluster[i], Cluster[ig]) = i;
+            eb(Cluster[ig], Cluster[i]) = i;
         }
-    } //  enddo ! i=1,Nele
+    } //  end for loop over all elements.
 
-    for (
-            int i = 0;
-            i < Nclus - 1; ++i) {
-        for (
-                int j = i + 1;
-                j < Nclus;
-                ++j) {
-            if (
-                    eb(i, j
-                    ) != 0) {
-                Bord(i, j
-                ) =
-                Bord(j, i
-                ) = Rho[eb[i, j]];
+    for (i = 0; i < Nclus - 1; ++i) {
+        for (j = i + 1; j < Nclus; ++j) {
+            if (eb(i, j) != 0) {
+                Bord(i, j) = Bord(j, i) = Rho[eb(i, j)];
             } else {
-                Bord(i, j
-                ) =
-                Bord(j, i
-                ) = 0;
+                Bord(i, j) = Bord(j, i) = 0;
             }
         }
     }
 
-/// Info per graph pre automatic merging
-    cent.
-            reserve(Nclus);
-    cent_err.
-            reserve(Nclus);
+    /// Info per graph pre automatic merging
+    cent = VecDouble(Nclus);
+    cent_err = VecDouble(Nclus);
 
-    for (
-            i = 0;
-            i < Nclus;
-            ++i) {
+    for (i = 0; i < Nclus; ++i) {
         cent[i] = Rho[Centers[i]];
         cent_err[i] = Rho_err[Centers[i]];
-/// Modify centers in such a way that get more survival
-        for (
-                j = 0;
-                j < Nele;
-                ++j) {
+        /// Modify centers in such a way that get more survival
+        for (j = 0; j < Nele; ++j) {
             if (!filter[j] && (Cluster[j] == i) && (Rho[j] - Rho_err[j] > (cent[i] - cent_err[i]))) {
                 cent[i] = Rho[j];
                 cent_err[i] = Rho_err[j];

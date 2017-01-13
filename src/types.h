@@ -40,7 +40,7 @@ public:
             std::copy(other.data(), other.data() + other.size(), new_array);
 
             // 2: deallocate old memory
-            delete[] data;
+            delete[] ptr;
 
             // 3: assign the new memory to the object
             ptr = new_array;
@@ -87,8 +87,9 @@ public:
         return res;
     }
 
+    // TODO: this only valid for T=double?
     MyArray1D pow(int exp) const {
-        auto res = this; // huh?
+        auto res = *this; // huh?
         for (size_t i = 0; i < size(); ++i) {
             res[i] = std::pow(ptr[i], exp);
         }
@@ -103,6 +104,7 @@ class MyArray2D {
     size_t rows, cols;
     bool own_data;
 public:
+    MyArray2D() : data(nullptr), own_data(true), rows(0), cols(0) {}
     MyArray2D(T *ptr, size_t rows, size_t cols) : data(ptr), rows(rows), cols(cols), own_data(false) {}
 
     MyArray2D(size_t rows, size_t cols) : rows(rows), cols(cols), own_data(true) { data = new T[rows * cols]; }
