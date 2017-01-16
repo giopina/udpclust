@@ -11,21 +11,7 @@ namespace udpclust {
 
 
 enum errors {
-    /* if self.id_err==1 :   print "Select case error for distance type" #obsolete?
-     elif self.id_err==2 : print "Error opening distance file"#obsolete?
-     elif self.id_err==3 : print "Error opening coordinates file"#obsolete?
-     elif self.id_err==4 : print "Error on distance file format" #obsolete?
-     elif self.id_err==5 : print "Error on coordinates file format" #obsolete?
-     elif self.id_err==6 : print "Peridic Boundary Conditions option unrecognized" # obsolete?
-     elif self.id_err==7 : print "Dimension calculation option unrecognized" # obsolete?
-     elif self.id_err==8 : print "Error opening critical values file" #obsolete?
-     elif self.id_err==9 : print "Just one cluster"
-     elif self.id_err==10: print "Just one cluster after merging"
-     elif self.id_err==11: print "Error in assignation"
-     elif self.id_err==12: print "Error in clustering: ig undefined; this may mean that there's a maximum in g_i not identified as a cluster center. Maybe you have identical points."
-     elif self.id_err==13: print "Error in distance: There are identical points!"
-     else : print "unrecognized error"*/
-            ONLY_ONE_CLUSTER = 9,
+    ONLY_ONE_CLUSTER = 9,
     ONLY_ONE_CLUSTER_AFTER_MERGING = 10,
     ERROR_IN_ASSIGNATION = 11,
     IG_UNDEFINED = 12
@@ -53,21 +39,46 @@ public:
      * @param dist_mat distance matrix
      * @param max_knn  maximum nearest neighbours
      */
-    UDPClustering(double *dist_mat, size_t Nele, size_t dimint, double sensibility, size_t max_knn) :
+    UDPClustering(double *dist_mat,
+                  double *Rho,
+                  int *Cluster,
+                  bool *filter,
+                  int dimint,
+                  int *Nlist,
+                  size_t Nele,
+            // int* id_err,
+                  double sensibility,
+                  int max_knn,
+            // optional, because we can call get_densities to alloc this itself.
+                  double *Rho_error = nullptr,
+                  int *Nstar = nullptr
+    ) :
             dist_mat(dist_mat, Nele, max_knn),
+            Rho(Rho, Nele),
+            Cluster(Cluster, Nele),
             Nele(Nele),
             dimint(dimint),
-            min_knn(8),
+            min_knn(8), // TODO: this could also be a parameter
             max_knn(max_knn),
             sensibility(sensibility),
-            Nlist(Nele, max_knn),
-            Nstar(Nele) {
+            Nlist(Nlist, Nele, max_knn),
+            Nstar(Nstar, Nele),
+            Rho_err(Rho_error, Nele),
+            survivors(VecInt(Nele)) {
     }
+
+    /// calculate densities of of points
+    void get_densities();
+
+    /// clustering routine
+    void clustering();
+
+    void merging();
 
 protected:
     size_t dimint;
-    size_t max_knn;
     size_t min_knn;
+    size_t max_knn;
 
     VecDouble Rho; // density for all points
     VecDouble Rho_err;
@@ -94,45 +105,29 @@ protected:
     VecInt Cluster_m; //  Cluster ID for the element
     int Nclus_m; //  Number of Cluster merged
 
-
-    /// calculate densities of of points
-    void get_densities();
-
-    /// clustering routine
-    void clustering();
-
-    void merging();
-
     // mark survivors, based on filter vector
     int get_survivors();
-
-    void find_border_densities();
 };
 
 /*############################################
 !### MAIN CLUSTERING ALGORITHM SUBROUTINE ###
 !############################################*/
-int dp_advance(int *, double *dist_mat, int dimint, int Nele, double *rho, double *rho_err, char *filter, int *Nlist,
-               float sensibility, int maxknn) {
+void dp_advance(double* dist_mat, int* Cluster, double* Rho, bool* filter, int dimint,
+                int* Nlist, int Nele, int* id_err, double sensibility, int maxknn);
 
-/*    try {
-        // create class
-        auto instance = UDPClustering(dist_mat, );
-        instance.get_densities();
-        instance.clustering(); // perform clustering
-        if (sensibility > 0.0) {
-            return instance.merging(); //  Generate a new matrix without peaks within border error
-
-        }
-    } catch (int val) {
-        return val;
-    }*/
-}
-
+/*
+//TODO: needed?
 // overload with no args, returns the instance.
-UDPClustering dp_advance() {
+UDPClustering dp_advance();
 
-}
-}
+int clustering(int *);
+
+int merging(int *);
+ */
+
+void get_densities(int* id_err, double* dist_mat, int Nele, int dimint, double* Rho, double* Rho_err,
+                   bool* filter, int* Nlist, int* Nstar, int maxknn);
+
+} // end of namespace udpclust
 
 #endif //UDPCLUST_UDPCLUST_H

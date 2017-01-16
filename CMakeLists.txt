@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.5)
 project(udpclust)
 
 set(CMAKE_CXX_STANDARD 14)
-include_directories( src)
-set(SOURCE_FILES main.cpp src/cluster.cpp)
+ADD_SUBDIRECTORY(libs/pybind11)
+include_directories(src ${PYBIND11_INCLUDE_DIR} ${PYTHON_INCLUDE_DIRS})
+
+set(SOURCE_FILES src/cluster.cpp
+        src/module.cpp
+        )
 add_executable(udpclust ${SOURCE_FILES})
+#TARGET_LINK_LIBRARIES(LINK_PUBLIC ${PYTHON_LIBRARIES} )

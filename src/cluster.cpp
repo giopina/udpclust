@@ -11,10 +11,47 @@
 
 namespace udpclust {
 
+/*############################################
+!### MAIN CLUSTERING ALGORITHM SUBROUTINE ###
+!############################################*/
+//subroutine dp_advance(dist_mat,Cluster,Rho,filter,dimint,Nlist,Nele,id_err,sensibility,maxknn)
+void dp_advance(double* dist_mat, int* Cluster, double* Rho, bool* filter, int dimint,
+               int* Nlist, int Nele, int* id_err, double sensibility, int maxknn) {
+    int result = 0;
+    try {
+        // create class
+        auto instance = UDPClustering(dist_mat, Rho, Cluster, filter, dimint, Nlist, Nele, sensibility, maxknn);
+        instance.get_densities();
+        instance.clustering(); // perform clustering
+        if (sensibility > 0.0) {
+            instance.merging(); // Generate a new matrix without peaks within border error
+        }
+    } catch (int error_id) {
+        result = error_id;
+    }
+    *(id_err) = result;
+}
+
+// UDP_modules.dp_clustering.get_densities\
+    (id_err,dmat,dim,rho,rho_err,filt,Nlist,Nstar)
+void get_densities(int* id_err, double* dist_mat, int Nele, int dimint, double* Rho, double* Rho_err,
+                   bool* filter, int* Nlist, int* Nstar, int maxknn) {
+    int result = 0;
+    try {
+        float sensibility = 0.0;
+        auto instance = UDPClustering(dist_mat, Rho, nullptr, filter, dimint, Nlist, Nele, sensibility, maxknn, Rho_err, Nstar);
+        instance.get_densities(); // writes the pointers Rho, rho_err and filter
+    } catch (int error_id) {
+       result = error_id;
+    }
+    *(id_err) = result;
+}
+
+
 // mark survivors, based on filter vector
 int UDPClustering::get_survivors() {
     int Nsurv = 0;
-    for (size_t i = 0; i < survivors.size(); ++i) {
+    for (int i = 0; i < survivors.size(); ++i) {
         if (!filter[i]) {
             Nsurv += 1;
             survivors[Nsurv] = i;
@@ -25,7 +62,7 @@ int UDPClustering::get_survivors() {
 
 void UDPClustering::clustering() {
     int i, j, k, l;
-    int ii, jj, kk;
+    int ii, jj;
     int ig;
     bool idmax;
     VecDouble Rho_prob(Nele);  // Probability of having maximum Rho
@@ -100,12 +137,12 @@ void UDPClustering::clustering() {
         i = iRho[j];
         if (!filter[j] && Cluster[j] == 0) {
             ig = -1;
-            dmin = std::numeric_limits<double>::max();
+            //dmin = std::numeric_limits<double>::max();
             for (k = 0; k < Nstar[i]; ++k) {
                 l = Nlist(i, k);
                 if (!filter[l] && Rho_prob[i] < Rho_prob[l]) {
                     ig = l;
-                    dmin = dist_mat(i, k);
+                    //dmin = dist_mat(i, k);
                 }
             }
             if (ig == -1) {
@@ -182,9 +219,10 @@ void UDPClustering::clustering() {
     }
 
     //// find border densities
-    VecDouble2d Bord(Nclus, Nclus);
-    VecDouble2d Bord_err(Nclus, Nclus);
+    //VecDouble2d Bord(Nclus, Nclus);
+    //VecDouble2d Bord_err(Nclus, Nclus);
     VecInt2d eb(Nclus, Nclus);
+    eb = 0;
 
     for (i = 0; i < Nele; ++i) {
         ig = -1;
@@ -277,12 +315,12 @@ void UDPClustering::clustering() {
  */
 void UDPClustering::get_densities() {
     int i, j, k, m, n;
-    double is, js, ks, ms, ns;
+    double /*is, js, ks,*/ ms, ns;
 
     const double pi = std::acos(-1);
     double prefactor;
 
-    double slope;
+    //double slope;
     double temp_rho, temp_err;
 
     bool viol = false;
@@ -295,7 +333,6 @@ void UDPClustering::get_densities() {
     VecDouble Vols(max_knn);
     VecDouble x, rh, rjk;
     VecInt iVols(max_knn);
-
 
     size_t limit = std::min(max_knn, (size_t) 0.5 * Nele);
 
@@ -383,7 +420,7 @@ void UDPClustering::get_densities() {
                     c += a * a;
                 }
                 a = b / c;
-                slope = a;
+                //slope = a;
                 rjfit = ymean - a * xmean;
                 //yintercept = rjfit;
                 /// Perform jacknife resampling for estimate the error( it includes the statistical error and curvature error)
@@ -483,8 +520,9 @@ void UDPClustering::merging() {
     }
     if (Nbarr > 1) {
         //TODO: call HPSORT(Nbarr,Barrier,iBarrier)
+        std::sort(Barrier.data(), Barrier.data()+Barrier.size());
     } else {
-        iBarrier[1] = 1;
+        iBarrier[0] = 1;
     }
 
     Survive = true; // set all elements
