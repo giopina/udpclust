@@ -9,6 +9,7 @@
 #include <cstddef> // for size_t...
 #include <numeric>
 #include <cassert>
+#include <cmath>
 
 
 template<class T>
@@ -18,10 +19,8 @@ class MyArray1D {
     bool own_data;
 public:
     MyArray1D() : ptr(0), N(0), own_data(true) {}
-
-    MyArray1D(T *ptr, size_t N) : ptr(ptr), N(N), own_data(false) {}
-
-    MyArray1D(size_t N) : N(N), own_data(true) { ptr = new T[N]; }
+    MyArray1D(T *ptr, size_t N) : ptr(ptr), N(N), own_data(false) { if(ptr == nullptr) { ptr = new T[N]; }}
+    MyArray1D(size_t N) : ptr(new T[N]), N(N), own_data(true) {}
 
     virtual ~MyArray1D() { if (own_data) { delete[] ptr; }}
 
@@ -45,6 +44,7 @@ public:
             // 3: assign the new memory to the object
             ptr = new_array;
             N = other.size();
+            own_data = other.own_data;
         }
         // by convention, always return *this
         return *this;
@@ -81,7 +81,7 @@ public:
 
     T sum() const {
         T res = 0;
-        for (size_t i; i < N; ++i) {
+        for (size_t i = 0; i < N; ++i) {
             res += ptr[i];
         }
         return res;
@@ -106,7 +106,6 @@ class MyArray2D {
 public:
     MyArray2D() : data(nullptr), own_data(true), rows(0), cols(0) {}
     MyArray2D(T *ptr, size_t rows, size_t cols) : data(ptr), rows(rows), cols(cols), own_data(false) {}
-
     MyArray2D(size_t rows, size_t cols) : rows(rows), cols(cols), own_data(true) { data = new T[rows * cols]; }
 
     virtual ~MyArray2D() { if (own_data) { delete[] data; }}

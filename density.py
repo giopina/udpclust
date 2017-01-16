@@ -21,6 +21,7 @@ traj=[]
 for line in open(fname,'r'):
     traj.append([float(x) for x in line.split()])
 traj=np.array(traj)
+Nele = len(traj)
 #np.random.shuffle(traj)
 print 'shape of input array =',traj.shape
 
@@ -68,8 +69,9 @@ Nstar=np.zeros(Npoints,dtype=np.int32)
 import time
 print 'fortran locknn'
 t0=time.time()
+#   get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
 UDP_modules.dp_clustering.get_densities\
-    (id_err,dmat,dim,rho,rho_err,filt,Nlist,Nstar)
+    (id_err,dmat,Nele,dim,rho,rho_err,filt,Nlist,Nstar,maxknn)
 print 'Done!',
 print time.time()-t0,
 

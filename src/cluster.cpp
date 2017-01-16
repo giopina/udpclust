@@ -6,8 +6,25 @@
 #include <cmath>
 #include <algorithm>
 #include <iostream>
-
+#include <cstdio>
 #include "udpclust.h"
+
+namespace {
+//TODO: document
+double critV[] = {2.91993, 2.54147, 2.12565, 1.96186, 1.77684, 1.64803, 1.57533, 1.5067, 1.41495, 1.34643, 1.27684,
+                  1.22541, 1.18433, 1.1471, 1.09867, 1.06576, 1.03915, 1.01645, 0.952258, 0.905418, 0.898981, 0.875249,
+                  0.87206, 0.836936, 0.819858, 0.800768, 0.797562, 0.781447, 0.766688, 0.738993, 0.732752, 0.728099,
+                  0.70811, 0.684839, 0.684345, 0.679015, 0.67268, 0.653041, 0.647386, 0.627234, 0.624929, 0.611507,
+                  0.61933, 0.611234, 0.608107, 0.587233, 0.577294, 0.577192, 0.560923, 0.560888, 0.546671, 0.548981,
+                  0.547454, 0.536353, 0.525234, 0.518936, 0.522186, 0.512919, 0.509488, 0.502661, 0.495502, 0.494555,
+                  0.489118, 0.485334, 0.476344, 0.479741, 0.465942, 0.459014, 0.464955, 0.461053, 0.453414, 0.454967,
+                  0.446396, 0.444694, 0.437131, 0.443723, 0.435582, 0.433105, 0.428171, 0.423817, 0.421205, 0.427278,
+                  0.423665, 0.421346, 0.412239, 0.410545, 0.410412, 0.411643, 0.410552, 0.401932, 0.400034, 0.394407,
+                  0.389816, 0.391372, 0.386547, 0.378603, 0.380782, 0.373165, 0.378837, 0.374406, 0.372651, 0.371155,
+                  0.366195, 0.363802, 0.363094, 0.360809, 0.356549, 0.351748, 0.352785, 0.351686, 0.353992, 0.351931,
+                  0.348852, 0.348677, 0.344735, 0.34412, 0.338458, 0.337939, 0.337716, 0.333917, 0.331751, 0.326056,
+                  0.326999};
+}
 
 namespace udpclust {
 
@@ -15,8 +32,8 @@ namespace udpclust {
 !### MAIN CLUSTERING ALGORITHM SUBROUTINE ###
 !############################################*/
 //subroutine dp_advance(dist_mat,Cluster,Rho,filter,dimint,Nlist,Nele,id_err,sensibility,maxknn)
-void dp_advance(double* dist_mat, int* Cluster, double* Rho, bool* filter, int dimint,
-               int* Nlist, int Nele, int* id_err, double sensibility, int maxknn) {
+void dp_advance(double *dist_mat, int *Cluster, double *Rho, bool *filter, int dimint,
+                int *Nlist, int Nele, int *id_err, double sensibility, int maxknn) {
     int result = 0;
     try {
         // create class
@@ -32,21 +49,53 @@ void dp_advance(double* dist_mat, int* Cluster, double* Rho, bool* filter, int d
     *(id_err) = result;
 }
 
-// UDP_modules.dp_clustering.get_densities\
-    (id_err,dmat,dim,rho,rho_err,filt,Nlist,Nstar)
-void get_densities(int* id_err, double* dist_mat, int Nele, int dimint, double* Rho, double* Rho_err,
-                   bool* filter, int* Nlist, int* Nstar, int maxknn) {
+void get_densities(int *id_err, double *dist_mat, int Nele, int dimint, double *Rho, double *Rho_err,
+                   bool *filter, int *Nlist, int *Nstar, int maxknn) {
     int result = 0;
     try {
         float sensibility = 0.0;
-        auto instance = UDPClustering(dist_mat, Rho, nullptr, filter, dimint, Nlist, Nele, sensibility, maxknn, Rho_err, Nstar);
+        printf("1***********\n");
+        auto instance = UDPClustering(dist_mat, Rho, nullptr, filter, dimint, Nlist, Nele, sensibility, maxknn, Rho_err,
+                                      Nstar);
+        printf("2***********\n");
+
         instance.get_densities(); // writes the pointers Rho, rho_err and filter
+        printf("3***********\n");
     } catch (int error_id) {
-       result = error_id;
+        result = error_id;
     }
     *(id_err) = result;
 }
 
+UDPClustering::UDPClustering(
+        double *dist_mat,
+        double *Rho,
+        int *Cluster,
+        bool *filter,
+        int dimint,
+        int *Nlist,
+        size_t Nele,
+        double sensibility,
+        int max_knn,
+        // optional, because we can call get_densities to alloc this itself.
+        double *Rho_error,
+        int *Nstar
+) :
+        dist_mat(dist_mat, Nele, max_knn),
+        Rho(Rho, Nele),
+        Cluster(Cluster, Nele),
+        filter(filter, Nele),
+        Nele(Nele),
+        dimint(dimint),
+        min_knn(8), // TODO: this could also be a parameter
+        max_knn(max_knn),
+        sensibility(sensibility),
+        Nlist(Nlist, Nele, max_knn),
+        Nstar(Nstar, Nele),
+        Rho_err(Rho_error, Nele),
+        survivors(VecInt(Nele)) {
+
+}
 
 // mark survivors, based on filter vector
 int UDPClustering::get_survivors() {
@@ -61,12 +110,11 @@ int UDPClustering::get_survivors() {
 }
 
 void UDPClustering::clustering() {
-    int i, j, k, l;
+    size_t i, j, k, l;
     int ii, jj;
     int ig;
     bool idmax;
     VecDouble Rho_prob(Nele);  // Probability of having maximum Rho
-    //VecDouble Rho_copy;
     VecInt iRho, ordRho;
     VecInt Centers;
     double d, dmin;
@@ -100,7 +148,7 @@ void UDPClustering::clustering() {
     assert(Rho[iRho[0]] > Rho[iRho[1]]);
 
     //  ordRho is the complementary of iRho. Given an element, ordRho returns its order in density
-    for (i; i < Nele; ++i) {
+    for (i = 0; i < Nele; ++i) {
         ordRho[iRho[i]] = i;
     }
 
@@ -520,7 +568,7 @@ void UDPClustering::merging() {
     }
     if (Nbarr > 1) {
         //TODO: call HPSORT(Nbarr,Barrier,iBarrier)
-        std::sort(Barrier.data(), Barrier.data()+Barrier.size());
+        std::sort(Barrier.data(), Barrier.data() + Barrier.size());
     } else {
         iBarrier[0] = 1;
     }
@@ -611,6 +659,7 @@ void UDPClustering::merging() {
         Cluster_m = 1;
         throw ONLY_ONE_CLUSTER_AFTER_MERGING;
     }
+    printf("end of get densities\n");
 }
 
 } // end of namespace udpclust
