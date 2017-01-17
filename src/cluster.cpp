@@ -37,7 +37,13 @@ void dp_advance(double *dist_mat, int *Cluster, double *Rho, bool *filter, int d
     int result = 0;
     try {
         // create class
-        auto instance = UDPClustering(dist_mat, Rho, Cluster, filter, dimint, Nlist, Nele, sensibility, maxknn);
+        //TODO: Rho_err not handed in, so we create it here temporarily
+        VecDouble Rho_err(Nele);
+        VecInt Nstar(Nele);
+
+        UDPClustering instance(dist_mat, Rho, Cluster, filter,
+                               dimint, Nlist, Nele, sensibility,
+                               maxknn, Rho_err.data(), Nstar.data());
         instance.get_densities();
         instance.clustering(); // perform clustering
         if (sensibility > 0.0) {
@@ -55,7 +61,7 @@ void get_densities(int *id_err, double *dist_mat, int Nele, int dimint, double *
     try {
         float sensibility = 0.0;
         printf("1***********\n");
-        auto instance = UDPClustering(dist_mat, Rho, nullptr, filter, dimint, Nlist, Nele, sensibility, maxknn, Rho_err,
+        UDPClustering instance(dist_mat, Rho, nullptr, filter, dimint, Nlist, Nele, sensibility, maxknn, Rho_err,
                                       Nstar);
         printf("2***********\n");
 
@@ -81,7 +87,7 @@ UDPClustering::UDPClustering(
         double *Rho_error,
         int *Nstar
 ) :
-        dist_mat(dist_mat, Nele, max_knn),
+        dist_mat(VecDoubleExt2d(dist_mat, Nele, max_knn),
         Rho(Rho, Nele),
         Cluster(Cluster, Nele),
         filter(filter, Nele),
@@ -375,7 +381,7 @@ void UDPClustering::get_densities() {
     double xmean, ymean, a, b, c;          // FIT
     double xsum, ysum, x2sum, xysum;
 
-    int Npart, partGood, savNstar, fin;
+    int Npart, savNstar, fin;
     double rhg, dL, rjaver, rjfit;
 
     VecDouble Vols(max_knn);
@@ -445,9 +451,10 @@ void UDPClustering::get_densities() {
                     Nstar[i] -= Nstar[i] % Npart;
                 }
                 /// get inv rho of partition
-                x = VecDouble(Npart);
-                rh = VecDouble(Npart);
-                rjk = VecDouble(Npart);
+                // FIXME: double free corruption...
+                VecDouble x(Npart);
+                VecDouble rh(Npart);
+                VecDouble rjk(Npart);
                 j = Nstar[i] / Npart;
                 for (k = 0; k < Npart; ++k) {
                     n = n + j;
@@ -499,7 +506,7 @@ void UDPClustering::get_densities() {
                 temp_err = std::max(temp_rho / std::sqrt((double) Nstar[i]), temp_rho * temp_rho * std::sqrt(temp_err));
                 if (temp_err > Rho_err[i]) {
                     Rho[i] = Rho_err[i] = temp_rho;
-                    partGood = Npart;
+                    //partGood = Npart;
                 }
             } // end: if(Nstar[i] % Npart < Nstar[i] /4 )
             Npart += 1;

@@ -30,9 +30,8 @@ public:
                   size_t Nele,
                   double sensibility,
                   int max_knn,
-            // optional, because we can call get_densities to alloc this itself.
-                  double *Rho_error = nullptr,
-                  int *Nstar = nullptr
+                  double *Rho_error,
+                  int *Nstar
     );
 
     /// calculate densities of of points
@@ -48,19 +47,20 @@ protected:
     size_t min_knn;
     size_t max_knn;
 
-    VecDouble Rho; // density for all points
-    VecDouble Rho_err;
+    VecDoubleExt Rho; // density for all points
+    VecDoubleExt Rho_err;
 
-    VecInt Cluster; // cluster ids
+    VecIntExt Cluster; // cluster ids
 
-    VecBool filter;
-    VecInt survivors;
+    VecBoolExt filter;
+    VecInt survivors; // internal
 
-    VecDouble2d dist_mat;
+    VecDoubleExt2d dist_mat;
     double sensibility;
 
     size_t Nele; // number of input points
     size_t Nclus; // number of clusters found; set by the clustering method.
+
     VecInt2d Nlist;   // Neighbour list within dc
     VecInt Nstar;   // N. of NN taken for comp dens
 

@@ -70,6 +70,7 @@ import time
 print 'fortran locknn'
 t0=time.time()
 #   get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
+#time.sleep(30)
 UDP_modules.dp_clustering.get_densities\
     (id_err,dmat,Nele,dim,rho,rho_err,filt,Nlist,Nstar,maxknn)
 print 'Done!',

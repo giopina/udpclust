@@ -6,27 +6,33 @@
 #define UDPCLUST_TYPES_H
 
 #include <vector>
-#include <cstddef> // for size_t...
+//#include <cstddef> // for size_t...
 #include <numeric>
 #include <cassert>
 #include <cmath>
+#include <memory>
+
+using std::size_t;
 
 
-template<class T>
+template<class T, typename D>
 class MyArray1D {
-    T *ptr;
+    // T *ptr;
+    std::unique_ptr<T, D> uptr;
     size_t N;
-    bool own_data;
 public:
-    MyArray1D() : ptr(0), N(0), own_data(true) {}
-    MyArray1D(T *ptr, size_t N) : ptr(ptr), N(N), own_data(false) { if(ptr == nullptr) { ptr = new T[N]; }}
-    MyArray1D(size_t N) : ptr(new T[N]), N(N), own_data(true) {}
+    MyArray1D() : N(0) {}
+    MyArray1D(size_t N) : uptr(new T[N]), N(N) {}
+    MyArray1D(T* raw_ptr, std::size_t N) : uptr(raw_ptr), N(N) {}
 
-    virtual ~MyArray1D() { if (own_data) { delete[] ptr; }}
+    MyArray1D(const MyArray1D& other) = 0;
+    MyArray1D(const MyArray1D&& other) : uptr(std::move(other.uptr)), N(other.N) {
+    }
 
-    T &operator[](size_t i) const { return ptr[i]; }
+    T &operator[](size_t i) const { return uptr.get()[i]; }
 
     void operator=(const T &value) {
+        auto ptr = uptr.get();
         for (size_t i = 0; i < N; ++i) {
             ptr[i] = value;
         }
@@ -34,30 +40,40 @@ public:
 
     MyArray1D &operator=(const MyArray1D &other) {
         if (this != &other) { // protect against invalid self-assignment
-            // 1: allocate new memory and copy the elements
+            /*// 1: allocate new memory and copy the elements
             T *new_array = new T[other.size()];
             std::copy(other.data(), other.data() + other.size(), new_array);
 
             // 2: deallocate old memory
-            delete[] ptr;
+            if (own_data)
+                delete[] ptr;
 
             // 3: assign the new memory to the object
             ptr = new_array;
             N = other.size();
-            own_data = other.own_data;
+            own_data = true;*/
+            //std::swap
         }
         // by convention, always return *this
+        return *this;
+    }
+    MyArray1D& operator=(MyArray1D&& other)
+    {
+        uptr = std::move(other.uptr);
+        N = other.N;
         return *this;
     }
 
     size_t size() const { return N; }
 
-    T *data() { return ptr; };
+    T *data() { return uptr.get(); };
 
-    const T *data() const { return ptr; }
+    const T *data() const { return uptr.get(); }
 
     MyArray1D operator+(const MyArray1D &o) const {
         auto res = MyArray1D(o.size());
+        auto ptr = uptr.get();
+
         for (size_t i = 0; i < o.size(); ++i) {
             res[i] = ptr[i] + o[i];
         }
@@ -65,6 +81,7 @@ public:
     }
 
     MyArray1D &operator=(T &value) {
+        auto ptr = uptr.get();
         for (size_t i = 0; i < N; ++i) {
             ptr[i] = value;
         }
@@ -73,6 +90,7 @@ public:
 
     MyArray1D operator*(const MyArray1D &o) const {
         auto res = MyArray1D(o.size());
+        auto ptr = uptr.get();
         for (size_t i = 0; i < N; ++i) {
             res[i] = ptr[i] * o[i];
         }
@@ -81,6 +99,7 @@ public:
 
     T sum() const {
         T res = 0;
+        auto ptr = uptr.get();
         for (size_t i = 0; i < N; ++i) {
             res += ptr[i];
         }
@@ -89,7 +108,9 @@ public:
 
     // TODO: this only valid for T=double?
     MyArray1D pow(int exp) const {
-        auto res = *this; // huh?
+        auto res = *this; // make copy
+        auto ptr = uptr.get();
+
         for (size_t i = 0; i < size(); ++i) {
             res[i] = std::pow(ptr[i], exp);
         }
@@ -98,23 +119,21 @@ public:
 
 };
 
-template<class T>
+template<class T, class D>
 class MyArray2D {
-    T *data;
+    std::unique_ptr<T, D> uptr;
     size_t rows, cols;
-    bool own_data;
 public:
-    MyArray2D() : data(nullptr), own_data(true), rows(0), cols(0) {}
-    MyArray2D(T *ptr, size_t rows, size_t cols) : data(ptr), rows(rows), cols(cols), own_data(false) {}
-    MyArray2D(size_t rows, size_t cols) : rows(rows), cols(cols), own_data(true) { data = new T[rows * cols]; }
+    MyArray2D() : rows(0), cols(0) {}
+    MyArray2D(T* raw_ptr, size_t rows, size_t cols) : uptr(raw_ptr), rows(rows), cols(cols) {}
+    MyArray2D(size_t rows, size_t cols) : uptr(new T[rows * cols]), rows(rows), cols(cols) { }
 
-    virtual ~MyArray2D() { if (own_data) { delete[] data; }}
-
-    T &operator()(size_t i, size_t j) const { return data[i + j * cols]; }
+    T &operator()(size_t i, size_t j) const { auto ptr = uptr.get(); return ptr[i + j * cols]; }
 
     void operator=(const T &value) {
+        auto ptr = uptr.get();
         for (size_t i = 0; i < rows * cols; ++i) {
-            data[i] = value;
+            ptr[i] = value;
         }
     }
 
@@ -122,19 +141,26 @@ public:
 
 };
 
+template<typename T>
+struct no_delete {
+    void operator()(T *__ptr) const {}
+};
 
-typedef MyArray1D<bool> VecBool;
-typedef MyArray1D<int> VecInt;
-typedef MyArray1D<double> VecDouble;
+// internally managed memory arrays
+typedef MyArray1D<bool, std::default_delete<bool[]>> VecBool;
+typedef MyArray1D<int, std::default_delete<int[]>> VecInt;
+typedef MyArray1D<double, std::default_delete<double[]>> VecDouble;
 
-typedef MyArray2D<double> VecDouble2d;
-typedef MyArray2D<int> VecInt2d;
+typedef MyArray2D<int, std::default_delete<int[]>> VecInt2d;
+typedef MyArray2D<double, std::default_delete<double[]>> VecDouble2d;
 
-/*
-template <class T>
-T sum(const std::vector<T>& vec) {
-    return std::accumulate(vec.begin(), vec.end(), T());
-}*/
+// externally managed memory arrays
+typedef MyArray1D<bool, no_delete<bool>> VecBoolExt;
+typedef MyArray1D<int, no_delete<int>> VecIntExt;
+typedef MyArray1D<double, no_delete<double>> VecDoubleExt;
+
+typedef MyArray2D<int, no_delete<int>> VecIntExt2d;
+typedef MyArray2D<double, no_delete<double>> VecDoubleExt2d;
 
 
 #endif //UDPCLUST_TYPES_H

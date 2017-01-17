@@ -67,7 +67,7 @@ def extensions():
                 # Path to pybind11 headers
                 os.path.abspath(os.path.join('libs/pybind11/include'))
             ],
-            extra_compile_args=['-ggdb'],
+            extra_compile_args=['-ggdb', '-g', '-O0'],
             language='c++'
         ),
     ]
