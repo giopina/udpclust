@@ -1,3 +1,5 @@
+### This is old and useless. Probably it doesn't work
+
 ### ---------------------------------------------
 ### Example script that uses the UDPClust class 
 ### to perform unsupervised density peak clustering
