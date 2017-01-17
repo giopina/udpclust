@@ -145,7 +145,7 @@ class cluster_UDP:
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
         if dmat==None:
-            print 'Computing distances'
+            print ('Computing distances')
             dmat=distance.pdist(self.trj_sub)
         else:
             assert dmat.shape[0]==self.trj_sub.shape[0],"ERROR: trj_tot[::stride] and distance matrix shapes do not match"
@@ -156,7 +156,7 @@ class cluster_UDP:
 
         ### dump the distance matrix if needed for dimensionality calculation
         if dump_dmat:
-            print 'Writing distance matrix on file','udp-dmat.dat'
+            print ('Writing distance matrix on file','udp-dmat.dat')
             maxmem=1e9 #max memory to use for the string, in bytes
             with open('udp-dmat.dat','w') as fh:
                 k=0
@@ -200,14 +200,14 @@ class cluster_UDP:
         self.id_err=np.array(0,dtype=np.int32)
         #
         # 2) call fortran subroutine
-        print 'fortran clustering'
+        print ('fortran clustering')
         t0=time.time()
         UDP_modules.dp_clustering.dp_advance\
             (dmat,self.frame_cl_sub,self.rho_sub,self.filt_sub,self.dim,self.id_err,self.sensibility)
 #        del dmat ### I'm not going to use it again. So delete it to make space for assignment
-        print 'Done!',
+        print ('Done!'),
         print time.time()-t0,
-        print 's; now post-processing'
+        print ('s; now post-processing')
 
 
     def __postprocessing(self):
@@ -251,7 +251,7 @@ class cluster_UDP:
 
         ### if stride==1 don't recompute distances:
         if self.stride==1:
-            print 'assign strided points'
+            print ('assign strided points')
             self.frame_cl=self.frame_cl_sub
         #   density for each frame in trj_tot
             self.rho=self.rho_sub
@@ -299,28 +299,28 @@ class cluster_UDP:
             self.cl_idx[icl].append(iframe)
         ###
         self.n_clusters=len(self.cl_idx)
-        print time.time()-t0
-        print "finished postprocessing"
+        print (time.time()-t00
+        print ("finished postprocessing")
         return 
     #END FUNCTION __CLUSTERING
 
     def __errorcheck(self):
         if self.id_err!=0:
             #TODO: change print into sys.exit( ... )
-            if self.id_err==1 :   print "Select case error for distance type" #obsolete?
-            elif self.id_err==2 : print "Error opening distance file"#obsolete?
-            elif self.id_err==3 : print "Error opening coordinates file"#obsolete?
-            elif self.id_err==4 : print "Error on distance file format" #obsolete?
-            elif self.id_err==5 : print "Error on coordinates file format" #obsolete?
-            elif self.id_err==6 : print "Peridic Boundary Conditions option unrecognized" # obsolete?
-            elif self.id_err==7 : print "Dimension calculation option unrecognized" # obsolete?
-            elif self.id_err==8 : print "Error opening critical values file" #obsolete?
-            elif self.id_err==9 : print "Just one cluster"
-            elif self.id_err==10: print "Just one cluster after merging"
-            elif self.id_err==11: print "Error in assignation"
-            elif self.id_err==12: print "Error in clustering: ig undefined; this may mean that there's a maximum in g_i not identified as a cluster center. Maybe you have identical points."
-            elif self.id_err==13: print "Error in distance: There are identical points!"
-            else : print "unrecognized error"
+            if self.id_err==1 :   print ("Select case error for distance type") #obsolete?
+            elif self.id_err==2 : print ("Error opening distance file")#obsolete?
+            elif self.id_err==3 : print ("Error opening coordinates file")#obsolete?
+            elif self.id_err==4 : print ("Error on distance file format") #obsolete?
+            elif self.id_err==5 : print ("Error on coordinates file format") #obsolete?
+            elif self.id_err==6 : print ("Peridic Boundary Conditions option unrecognized") # obsolete?
+            elif self.id_err==7 : print ("Dimension calculation option unrecognized") # obsolete?
+            elif self.id_err==8 : print ("Error opening critical values file") #obsolete?
+            elif self.id_err==9 : print ("Just one cluster")
+            elif self.id_err==10: print ("Just one cluster after merging")
+            elif self.id_err==11: print ("Error in assignation")
+            elif self.id_err==12: print ("Error in clustering: ig undefined; this may mean that there's a maximum in g_i not identified as a cluster center. Maybe you have identical points.")
+            elif self.id_err==13: print ("Error in distance: There are identical points!")
+            else : print ("unrecognized error")
             return True
         else: return False
 
@@ -335,7 +335,7 @@ class cluster_UDP:
         if delta!=None:
             self.delta=delta
         R_CORE=np.exp(-self.delta)
-        print " Identifying core sets using a cutoff of %s with respect to the peak density" % R_CORE
+        print (" Identifying core sets using a cutoff of %s with respect to the peak density" % R_CORE)
         self.cores_idx=[  [] for i in range(len(self.cl_idx))]
         k_cl=0
         for cluster in self.cl_idx:
@@ -543,9 +543,9 @@ class cluster_UDP:
 
     def dump_dmat(self,name):
         ### I don't know if this works
-        print 'computing distance matrix'
+        print ('computing distance matrix')
         dmat=distance.pdist(self.trj_tot)
-        print 'writing distance matrix on file',name+'_udp-dmat.dat'
+        print ('writing distance matrix on file',name+'_udp-dmat.dat')
         k=0
         stringa=''
         for i in range(self.Npoints):
@@ -574,3 +574,6 @@ class cluster_UDP:
         for frame in self.frame_cl:
             fh.write('%d\n'%frame)
         fh.close()
+
+    
+    def 
