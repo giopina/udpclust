@@ -43,9 +43,7 @@ public:
     void merging();
 
 protected:
-    size_t dimint;
-    size_t min_knn;
-    size_t max_knn;
+    VecDoubleExt2d dist_mat;
 
     VecDoubleExt Rho; // density for all points
     VecDoubleExt Rho_err;
@@ -53,9 +51,11 @@ protected:
     VecIntExt Cluster; // cluster ids
 
     VecBoolExt filter;
+    size_t dimint;
+    size_t min_knn;
+    size_t max_knn;
     VecInt survivors; // internal
 
-    VecDoubleExt2d dist_mat;
     double sensibility;
 
     size_t Nele; // number of input points

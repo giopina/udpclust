@@ -6,7 +6,7 @@
 #include <cmath>
 #include <algorithm>
 #include <iostream>
-#include <cstdio>
+//#include <cstdio>
 #include "udpclust.h"
 
 namespace {
@@ -60,9 +60,9 @@ void get_densities(int *id_err, double *dist_mat, int Nele, int dimint, double *
     int result = 0;
     try {
         float sensibility = 0.0;
+
         printf("1***********\n");
-        UDPClustering instance(dist_mat, Rho, nullptr, filter, dimint, Nlist, Nele, sensibility, maxknn, Rho_err,
-                                      Nstar);
+        UDPClustering instance(dist_mat, Rho, nullptr, filter, dimint, Nlist, Nele, sensibility, maxknn, Rho_err, Nstar);
         printf("2***********\n");
 
         instance.get_densities(); // writes the pointers Rho, rho_err and filter
@@ -83,11 +83,10 @@ UDPClustering::UDPClustering(
         size_t Nele,
         double sensibility,
         int max_knn,
-        // optional, because we can call get_densities to alloc this itself.
         double *Rho_error,
         int *Nstar
 ) :
-        dist_mat(VecDoubleExt2d(dist_mat, Nele, max_knn),
+        dist_mat(dist_mat, Nele, max_knn),
         Rho(Rho, Nele),
         Cluster(Cluster, Nele),
         filter(filter, Nele),
@@ -187,7 +186,7 @@ void UDPClustering::clustering() {
     }
 
     /// assign not filtered
-    for (i = 0; i < Nele; ++i) {
+    for (j = 0; j < Nele; ++j) {
         i = iRho[j];
         if (!filter[j] && Cluster[j] == 0) {
             ig = -1;
@@ -368,8 +367,8 @@ void UDPClustering::clustering() {
  * @param dimint
  */
 void UDPClustering::get_densities() {
-    int i, j, k, m, n;
-    double /*is, js, ks,*/ ms, ns;
+    size_t i, j, k, m, n;
+    double ms, ns;
 
     const double pi = std::acos(-1);
     double prefactor;
@@ -378,7 +377,7 @@ void UDPClustering::get_densities() {
     double temp_rho, temp_err;
 
     bool viol = false;
-    double xmean, ymean, a, b, c;          // FIT
+    double xmean, ymean, a=1, b=1, c=1;          // FIT
     double xsum, ysum, x2sum, xysum;
 
     int Npart, savNstar, fin;
@@ -439,8 +438,9 @@ void UDPClustering::get_densities() {
         if (Nstar[i] < min_knn) {
             Nstar[i] = min_knn;
         }
+        //std::cout << "max Nstar: " << Nstar.max() << std::endl;
         Rho_err[i] = std::numeric_limits<double>::max();
-        rhg = (float) Nstar[i] / Vols[Nstar[i]]; // Rho without fit.
+        rhg = (double) Nstar[i] / Vols[Nstar[i]]; // Rho without fit.
         Rho[i] = rhg;
         savNstar = Nstar[i];
         Npart = 4;
