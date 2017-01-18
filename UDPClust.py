@@ -315,7 +315,7 @@ class cluster_UDP:
             self.cl_idx[icl].append(iframe)
         ###
         self.n_clusters=len(self.cl_idx)
-        print (time.time()-t00
+        print (time.time()-t0)
         print ("finished postprocessing")
         return 
     #END FUNCTION __CLUSTERING
@@ -592,4 +592,4 @@ class cluster_UDP:
         fh.close()
 
     
-    def 
+#    def  sample_indexes_by_cluster(sorts_coord, n_geom_samples)
