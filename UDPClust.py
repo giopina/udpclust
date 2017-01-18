@@ -34,7 +34,7 @@ class cluster_UDP:
     coring      :: bool    :: True to define core sets
     delta       :: float   :: parameter for core set definition
     sensibility :: float   :: parameter in clusters merging
-    bigdata     :: bool    :: (default = False) set True if you really want to let the program run with >20k points (it's going to be really slow)
+    bigdata     :: bool    :: (default = False) set True if you really want to let the program run with >100k points (it's going to be really slow)
     n_jobs      :: int     :: (default = -1) number of processor to use for cKDTree.query (-1 will use all of them)
 
       # dataset information
@@ -84,7 +84,7 @@ class cluster_UDP:
         dmat :: (Optional) matrix of distances between data points. If not provided by the user will
                            be computed as the euclidean distances between points in trj_tot
 
-        stride :: (default=1) distance matrix calculation and storage is unpractical for N.frames >~ 10^4
+        stride :: (default=1) even with KDTrees distance matrix calculation and storage is unpractical for N.frames >~ 10^5
                               use a stride>1 in order to perform the clustering only on a subset of the
                               total dataset. The rest of the points will be assigned later
 
@@ -97,7 +97,7 @@ class cluster_UDP:
         sens :: (default=1) sensibility parameter in the clustering algorithm. Increase to merge more clusters
 
         delta :: (default=1.0) core set definition parameter
-        bigdata :: (default=False) set True if you really want to let the program run with >20k points (it's going to be really slow)
+        bigdata :: (default=False) set True if you really want to let the program run with >100k points (it's going to be slow and use a lot of memory)
         n_jobs :: (default = -1) number of processor to use for cKDTree.query (-1 will use all of them)
         """
 
@@ -138,8 +138,7 @@ class cluster_UDP:
         assert self.trj_sub.shape[0]>1, 'ERROR: stride is too large, the subset contains only one point'
 
         if not self.bigdata:
-            assert self.trj_sub.shape[0]<20000, 'WARNING: the size of the distance matrix will be large. Maybe you should decrease the stride.(run with bigdata=True to skip this check)'
-#        if self.trj_sub.shape[0]>20000: print 'WARNING: the size of the distance matrix will be large. Maybe you should decrease the stride'
+            assert self.trj_sub.shape[0]<100000, 'WARNING: the size of the distance matrix will be large. Maybe you should decrease the stride.(run with bigdata=True to skip this check)'
 
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
@@ -155,11 +154,9 @@ class cluster_UDP:
             Nlist=np.array(Nlist,dtype=np.int32,order='F')
             #dmat=np.array(dmat,order='F') ### TODO check if this is needed
 
-#            dmat=distance.pdist(self.trj_sub)
         else:
             assert dmat.shape[0]==self.trj_sub.shape[0],"ERROR: trj_tot[::stride] and distance matrix shapes do not match"
 
-#        self.ND=len(dmat)
         self.Ntot=self.trj_tot.shape[0]
         self.Npoints=self.trj_sub.shape[0]
 
@@ -323,16 +320,8 @@ class cluster_UDP:
     def __errorcheck(self):
         if self.id_err!=0:
             #TODO: change print into sys.exit( ... )
-            if self.id_err==1 :   print ("Select case error for distance type") #obsolete?
-            elif self.id_err==2 : print ("Error opening distance file")#obsolete?
-            elif self.id_err==3 : print ("Error opening coordinates file")#obsolete?
-            elif self.id_err==4 : print ("Error on distance file format") #obsolete?
-            elif self.id_err==5 : print ("Error on coordinates file format") #obsolete?
-            elif self.id_err==6 : print ("Peridic Boundary Conditions option unrecognized") # obsolete?
-            elif self.id_err==7 : print ("Dimension calculation option unrecognized") # obsolete?
-            elif self.id_err==8 : print ("Error opening critical values file") #obsolete?
-            elif self.id_err==9 : print ("Just one cluster")
-            elif self.id_err==10: print ("Just one cluster after merging")
+            if self.id_err==9 : print ("No clusters defined") # TODO:not sure this can be
+            elif self.id_err==10: print ("No clusters after merging")  #
             elif self.id_err==11: print ("Error in assignation")
             elif self.id_err==12: print ("Error in clustering: ig undefined; this may mean that there's a maximum in g_i not identified as a cluster center. Maybe you have identical points.")
             elif self.id_err==13: print ("Error in distance: There are identical points!")
@@ -459,102 +448,6 @@ class cluster_UDP:
             ctrajs=np.array(ctrajs) ### TODO: check if it is better to return a single ndarray or a list, for PyEmma compatibility
             
         return ctrajs ### returns correspond to [tr[::-1] for tr in trajs]
-
-
-
-
-    ### CTRAJS 
-    ### Here it assigns frames from a list of trajectories to the clusters.
-    def assign(self,tica_traj):
-        """ Deprecated, you should use stride>1 and then get_core_traj()"""
-        # this part takes some time
-#        if self.ctrajs==None:
-        ctrajs=[]
-        it=0
-        # usa isinstance(tica_traj,list/np.array) to understand which type it has
-        for tt in tica_traj:
-            old_icl=len(self.cores_idx) # fake microstate, where u start all the trj and never enter again
-            ct=[]
-            for frame in tt:
-                #                dists=distance.cdist(self.trj_tot,np.array([frame]))[:,0]
-                sqdists=distance.cdist(self.trj_tot,np.array([frame]),'sqeuclidean')[:,0] # should be faster
-                idx=np.argmin(sqdists)
-                icl=self.frame_cl_sub[idx]
-                
-                if self.coring and idx not in self.cores_idx[icl]:
-                    icl=old_icl
-                ct.append(icl)
-                old_icl=icl
-            ctrajs.append(np.array(ct))
-            it+=1
-        return ctrajs
-
-    ### CTRAJS 
-    def assign_w_rev(self,tica_traj):
-        """ Deprecated, you should use stride>1 and then get_core_traj()"""
-        # this part takes some time
-        ### assign both forward and reverse trajectories
-#        if self.ctrajs==None:
-        tmp_ctrjs=[]
-        it=0
-        for tt in tica_traj:
-            out_icl=len(self.cores_idx) # fake microstate, when you are not in a core set
-            ct=[]
-            for frame in tt:
-                sqdists=distance.cdist(self.trj_tot,np.array([frame]),'sqeuclidean')[:,0]
-                idx=np.argmin(sqdists)
-                icl=self.frame_cl_sub[idx]
-                if idx not in self.cores_idx[icl]:
-                    icl=out_icl
-                ct.append(icl)
-            tmp_ctrjs.append(np.array(ct))
-            it+=1
-
-        ctrajs=[]
-        for tmp_ct in tmp_ctrjs:
-            ct=[]
-            old_icl=out_icl
-            for icl in tmp_ct:
-                if icl==out_icl:
-                    icl=old_icl
-                ct.append(icl)
-                old_icl=icl
-            ctrajs.append(np.array(ct))
-            
-        ctrajs_rev=[]
-        for tmp_ct in tmp_ctrjs:
-            ct=[]
-            old_icl=out_icl
-            for icl in tmp_ct[::-1]:
-                if icl==out_icl:
-                    icl=old_icl
-                ct.append(icl)
-                old_icl=icl
-            ctrajs_rev.append(np.array(ct))
-
-        return ctrajs,ctrajs_rev
-
-
-    ### cluster centers in the initial coordinates space
-    ### (defined as average of each coord over the points
-    ###  in the each core set)
-    def get_centers(self):
-        """ Deprecated, you should use get_centers_idx"""
-#        if self.centers==None:
-        Nframes,Ncoords=self.trj_tot.shape
-        centers=np.zeros((self.n_clusters,Ncoords))
-        for icl in range(self.n_clusters):
-            centers[icl]=np.average(self.trj_tot[self.cores_idx[icl]],axis=0)
-#        for iframe in range(Nframes):
-#            centers[self.frame_cl[iframe]]+=self.trj_tot[iframe]            
-        return centers
-    ### NEW cluster centers in the initial coordinates space
-    ### (defined as points with maximum density)
-    def get_centers_idx(self):
-        cent_idx=[]
-        for cluster in self.cl_idx:
-            cent_idx.append(cluster[np.argmax(self.rho[cluster])])
-        return np.array(cent_idx)
 
 
     def dump_dmat(self,name):

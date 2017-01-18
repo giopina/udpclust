@@ -67,9 +67,11 @@ contains
     id_err=0
     call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn) 
     call clustering(id_err)                      ! get Clusters
-    if(sensibility.gt.0.0) then
-       call merging(id_err) ! Generate a new matrix without peaks within border error  
-       Cluster=Cluster_m
+    if(Nclus.gt.1) then
+       if(sensibility.gt.0.0) then
+          call merging(id_err) ! Generate new clusters without peaks within border error  
+          Cluster=Cluster_m
+       endif
     endif
     return
 
@@ -155,194 +157,197 @@ contains
             Centers(Cluster(i))=i
          endif
       enddo
-      if (Nclus.gt.1) then
-         ! Assign not filtered
-         ! TODO: change it with survivors
-         do j=1,Nele
-            i=iRho(j)
-            if ((.not.filter(i)).and.Cluster(i).eq.0) then
-               ig=-1
-               dmin=9.9d99
-               do k=1,Nstar(i)
-                  l=Nlist(i,k)
-                  if (.not.filter(l)) then
-                     if(Rho_prob(i).lt.Rho_prob(l)) then ! ### TODO check this
-                        if (dist_mat(i,k).le.dmin) then
-                           ig=l
-                           dmin=dist_mat(i,k) 
-                        endif
+      if (Nclus.lt.1) then
+         ! TODO: I'm actually not sure this can happen
+         Cluster(:)=-1
+         id_err=9
+         return
+      if (Nclus.eq.1) then      
+         return
+      endif
+   
+      ! Assign not filtered
+      ! TODO: change it with survivors
+      do j=1,Nele
+         i=iRho(j)
+         if ((.not.filter(i)).and.Cluster(i).eq.0) then
+            ig=-1
+            dmin=9.9d99
+            do k=1,Nstar(i)
+               l=Nlist(i,k)
+               if (.not.filter(l)) then
+                  if(Rho_prob(i).lt.Rho_prob(l)) then ! ### TODO check this
+                     if (dist_mat(i,k).le.dmin) then
+                        ig=l
+                        dmin=dist_mat(i,k) 
                      endif
                   endif
-               enddo
-               if (ig.eq.-1) then
-                  id_err=12
-                  RETURN
-               else
-                  Cluster(i)=Cluster(ig)
                endif
+            enddo
+            if (ig.eq.-1) then
+               id_err=12
+               RETURN
+            else
+               Cluster(i)=Cluster(ig)
             endif
-         enddo
-      
-         ! Assign filtered to the same Cluster as its nearest unfiltered neighbour
-         ! what happens if all neighbors are filtered?
-         ! this can happen, at least in principle. What should I do then?
-         ! option 1: assign the point to the same cluster of the closest filtered point (you should do this in the end, but it will depend on the order you consider the points...
+         endif
+      enddo
+
+      ! Assign filtered to the same Cluster as its nearest unfiltered neighbour
+      ! what happens if all neighbors are filtered?
+      ! this can happen, at least in principle. What should I do then?
+      ! option 1: assign the point to the same cluster of the closest filtered point (you should do this in the end, but it will depend on the order you consider the points...
+      viol=.false.
+      do i=1,Nele
+         if (Cluster(i).eq.0) then
+            ig=-1
+            if(.not.filter(i)) then
+               id_err=12
+               RETURN
+            endif
+            dmin=9.9d99
+            do k=1,maxknn ! find the min d in not filt elements
+               l=Nlist(i,k)
+               if ((Cluster(l).ne.0).and.(.not.filter(l))) then
+                  d=dist_mat(i,k)
+                  if (d.le.dmin) then
+                     dmin=d
+                     ig=l
+                  endif
+               endif
+            enddo
+            if (ig.ne.-1) then
+               Cluster(i)=Cluster(ig)
+            else
+               viol=.true.
+            endif
+         endif
+      enddo
+      do while (viol) 
+         ! TODO: change this so does not depend on the order
          viol=.false.
+         NEWASS=.FALSE.
+         Nnoass=0
          do i=1,Nele
             if (Cluster(i).eq.0) then
-               ig=-1
-               if(.not.filter(i)) then
-                  id_err=12
-                  RETURN
-               endif
                dmin=9.9d99
-               do k=1,maxknn ! find the min d in not filt elements
-                  l=Nlist(i,k)
-                  if ((Cluster(l).ne.0).and.(.not.filter(l))) then
+               ig=-1
+               ! if (dmin.gt.9.8d99) then !### what if all the neighbours are filtered?
+               ! do k=1,Nstar(i) ! find the min d in filter elements
+               do k=1,maxknn ! find the min d in filter elements
+                  j=Nlist(i,k)
+                  if ((Cluster(j).ne.0)) then
                      d=dist_mat(i,k)
                      if (d.le.dmin) then
                         dmin=d
-                        ig=l
+                        ig=j
                      endif
                   endif
                enddo
                if (ig.ne.-1) then
                   Cluster(i)=Cluster(ig)
+                  NEWASS=.TRUE.
                else
                   viol=.true.
+                  Nnoass=Nnoass+1
                endif
+            endif ! endif cluster(i)==0
+         enddo
+         ! check if this stopped or got stuck. It should not happen
+         IF(.NOT.NEWASS) THEN
+            WRITE(*,*) 'ERROR: cannot assign some filtered points to clusters'
+            id_err=12
+            RETURN
+
+         endif
+      enddo
+
+      ! find border densities
+      allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
+      Bord(:,:)=-9.9D99
+      Bord_err(:,:)=0.
+      eb(:,:)=0
+
+      do i=1,Nele ! si puo' fare il loop solo su i filter?
+         if (filter(i)) CYCLE
+         ig=-1
+         dmin=9.9d99
+         do k=1,Nstar(i)
+            l=Nlist(i,k)
+            if (filter(l)) CYCLE
+            if (cluster(l).eq.cluster(i)) CYCLE
+            d=dist_mat(i,k)
+            if (d.lt.dmin) then
+               dmin=d
+               ig=l
             endif
          enddo
-         do while (viol) 
-            ! TODO: change this so does not depend on the order
-            viol=.false.
-            NEWASS=.FALSE.
-            Nnoass=0
-            do i=1,Nele
-               if (Cluster(i).eq.0) then
-                  dmin=9.9d99
-                  ig=-1
-                  ! if (dmin.gt.9.8d99) then !### what if all the neighbours are filtered?
-                  ! do k=1,Nstar(i) ! find the min d in filter elements
-                  do k=1,maxknn ! find the min d in filter elements
-                     j=Nlist(i,k)
-                     if ((Cluster(j).ne.0)) then
-                        d=dist_mat(i,k)
-                        if (d.le.dmin) then
-                           dmin=d
-                           ig=j
-                        endif
-                     endif
-                  enddo
-                  if (ig.ne.-1) then
-                     Cluster(i)=Cluster(ig)
-                     NEWASS=.TRUE.
-                  else
-                     viol=.true.
-                     Nnoass=Nnoass+1
-                  endif
-               endif ! endif cluster(i)==0
-            enddo
-            ! check if this stopped or got stuck. It should not happen
-            IF(.NOT.NEWASS) THEN
-               WRITE(*,*) 'ERROR: cannot assign some filtered points to clusters'
-               id_err=12
-               RETURN
-
-            endif
-         enddo 
-
-         ! find border densities
-         allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
-         Bord(:,:)=-9.9D99
-         Bord_err(:,:)=0.
-         eb(:,:)=0
-
-         do i=1,Nele ! si puo' fare il loop solo su i filter?
-            if (filter(i)) CYCLE
-            ig=-1
-            dmin=9.9d99
-            do k=1,Nstar(i)
-               l=Nlist(i,k)
-               if (filter(l)) CYCLE
-               if (cluster(l).eq.cluster(i)) CYCLE
-               d=dist_mat(i,k)
-               if (d.lt.dmin) then
-                  dmin=d
-                  ig=l
-               endif
-            enddo
-            if (dmin.gt.9.8d99) CYCLE
-            extend=.true.
-            if (ig.eq.-1) then
-               id_err=12
-               RETURN
-            endif
-            do k=1,Nstar(i)
-               l=Nlist(i,k)
-               if(filter(l)) CYCLE
-               if(cluster(l).ne.cluster(i)) CYCLE
-               d=9.9d99
-               do jj=1,maxknn
-                  j=Nlist(l,jj)
-                  if (j.eq.ig) THEN
-                     d=dist_mat(l,jj)
-                     EXIT
-                  ENDIF
-               enddo
-               if (d.lt.dmin) then 
-                  extend=.false.
+         if (dmin.gt.9.8d99) CYCLE
+         extend=.true.
+         if (ig.eq.-1) then
+            id_err=12
+            RETURN
+         endif
+         do k=1,Nstar(i)
+            l=Nlist(i,k)
+            if(filter(l)) CYCLE
+            if(cluster(l).ne.cluster(i)) CYCLE
+            d=9.9d99
+            do jj=1,maxknn
+               j=Nlist(l,jj)
+               if (j.eq.ig) THEN
+                  d=dist_mat(l,jj)
                   EXIT
-               endif
+               ENDIF
             enddo
-            if (extend) then
-               if (Rho_prob(i).gt. Bord(cluster(i),cluster(ig))) then
-                  Bord(cluster(i),cluster(ig))=Rho_prob(i)
-                  Bord(cluster(ig),cluster(i))=Rho_prob(i)
-                  Bord_err(cluster(i),cluster(ig))=Rho_err(i)
-                  Bord_err(cluster(ig),cluster(i))=Rho_err(i)
-                  eb(cluster(i),cluster(ig))=i
-                  eb(cluster(ig),cluster(i))=i
+            if (d.lt.dmin) then 
+               extend=.false.
+               EXIT
+            endif
+         enddo
+         if (extend) then
+            if (Rho_prob(i).gt. Bord(cluster(i),cluster(ig))) then
+               Bord(cluster(i),cluster(ig))=Rho_prob(i)
+               Bord(cluster(ig),cluster(i))=Rho_prob(i)
+               Bord_err(cluster(i),cluster(ig))=Rho_err(i)
+               Bord_err(cluster(ig),cluster(i))=Rho_err(i)
+               eb(cluster(i),cluster(ig))=i
+               eb(cluster(ig),cluster(i))=i
+            endif
+         endif
+      enddo ! i=1,Nele
+
+      do i=1,Nclus-1
+         do j=i+1,Nclus
+            if (eb(i,j).ne.0) then
+               Bord(i,j)=Rho(eb(i,j))
+               Bord(j,i)=Rho(eb(i,j))
+            else
+               Bord(i,j)=0.
+               Bord(j,i)=0.
+            endif
+         enddo
+      enddo
+
+      deallocate (Rho_prob)
+      deallocate (iRho)
+      deallocate(ordRho)
+      ! Info per graph pre automatic merging
+      allocate (cent(Nclus))
+      allocate (cent_err(Nclus))
+      do i=1,Nclus
+         cent(i)=Rho(Centers(i))
+         cent_err(i)=Rho_err(Centers(i))
+         ! Modify centers in such a way that get more survival
+         do j=1,Nele
+            if (.not.filter(j)) then !
+               if ((cluster(j).eq.i).and.((Rho(j)-Rho_err(j)).gt.(cent(i)-cent_err(i)))) then !
+                  cent(i)=Rho(j)
+                  cent_err(i)=Rho_err(j) !
                endif
             endif
-         enddo ! i=1,Nele
-
-         do i=1,Nclus-1
-            do j=i+1,Nclus
-               if (eb(i,j).ne.0) then
-                  Bord(i,j)=Rho(eb(i,j))
-                  Bord(j,i)=Rho(eb(i,j))
-               else
-                  Bord(i,j)=0.
-                  Bord(j,i)=0.
-               endif
-            enddo
          enddo
-
-         deallocate (Rho_prob)
-         deallocate (iRho)
-         deallocate(ordRho)
-         ! Info per graph pre automatic merging
-         allocate (cent(Nclus))
-         allocate (cent_err(Nclus))
-         do i=1,Nclus
-            cent(i)=Rho(Centers(i))
-            cent_err(i)=Rho_err(Centers(i))
-            ! Modify centers in such a way that get more survival
-            do j=1,Nele
-               if (.not.filter(j)) then !
-                  if ((cluster(j).eq.i).and.((Rho(j)-Rho_err(j)).gt.(cent(i)-cent_err(i)))) then !
-                     cent(i)=Rho(j)
-                     cent_err(i)=Rho_err(j) !
-                  endif
-               endif
-            enddo
-         enddo
-      else
-         Cluster(:)=1
-         id_err=9
-      endif
-
+      enddo
       return
     end subroutine clustering
     !
@@ -463,16 +468,20 @@ contains
          endif
       enddo
 
-      ! get survival characteristics
-      if (Nclus_m.gt.1) then
-         do i=1,Nele
-            Cluster_m(i)=O2M(Cluster_m(i))
-         enddo
-      else
-         id_err=10
+      if (Nclus_m.eq.1) then
          Cluster_m(:)=1
+         return
       endif
-
+      if (Nclus_m.lt.1) then
+         ! TODO: not sure this can happen
+         id_err=10
+         Cluster_m(:)=-1
+         return
+      endif
+      ! get survival characteristics      
+      do i=1,Nele
+         Cluster_m(i)=O2M(Cluster_m(i))
+      enddo
       return
     end subroutine merging
     !

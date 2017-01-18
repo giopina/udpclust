@@ -28,13 +28,10 @@ print 'shape of input array =',traj.shape
 maxknn=496
 from scipy.spatial import distance
 from scipy.spatial import cKDTree
-from UDP_functions import locknn
-#dmat=distance.pdist(traj)
-#print np.sort(distance.squareform(dmat)[0])[:20]
+
 tree=cKDTree(traj)
 dmat,Nlist=tree.query(traj,k=maxknn+1,n_jobs=-1)
-#print dmat[0,:20]
-#print Nlist[:,0]
+
 Nlist=Nlist[:,1:]
 dmat=dmat[:,1:]
 Nlist+=1
@@ -72,14 +69,6 @@ UDP_modules.dp_clustering.get_densities\
     (id_err,dmat,dim,rho,rho_err,filt,Nlist,Nstar)
 print 'Done!',
 print time.time()-t0,
-
-
-###  cl=dp.cluster_UDP(dim,traj)
-###  print 'Clustering done'
-###  rho=cl.rho
-###  filt=cl.filt
-
-
 
 fh=open(sys.argv[3]+'_rho.dat','w')
 iframe=0

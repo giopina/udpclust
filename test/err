@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "../density.py", line 31, in <module>
-    from UDP_functions import locknn
-ImportError: No module named UDP_functions
