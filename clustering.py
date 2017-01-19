@@ -38,6 +38,8 @@ def parse():
     parser.add_argument("--coring", dest="coring",help="identify core sets",action="store_true",required=False)
 
     parser.add_argument("--bigdata", dest="bigdata",help="set to true to work with > 20k points (will be slooow)",action="store_true",required=False)
+    
+    parser.add_argument("--inoise", dest="inoise",help="amplitude of Gaussian noise that will be added if identical points are found (be careful!)",default=0.00001,required=False,type=float)
 
     parser.add_argument("-o",dest="oname",help="output file name", required=False,default=None)
 
@@ -64,7 +66,7 @@ def main():
         traj.append([float(x) for x in line.split()])
     traj=np.array(traj)
     print ('shape of input array =',traj.shape)
-    cl=dp.cluster_UDP(args.dim,traj,stride=args.stride,coring=args.coring,delta=args.delta,sens=args.sens,bigdata=args.bigdata,n_jobs=-1)
+    cl=dp.cluster_UDP(args.dim,traj,stride=args.stride,coring=args.coring,delta=args.delta,sens=args.sens,bigdata=args.bigdata,n_jobs=-1,i_noise=args.inoise)
     print ('Clustering done')
     #fout=open(sys.argv[3],'wb')
     #pickle.dump(cl,fout,-1)

@@ -162,6 +162,7 @@ contains
          Cluster(:)=-1
          id_err=9
          return
+      endif
       if (Nclus.eq.1) then      
          return
       endif
@@ -554,7 +555,7 @@ contains
        enddo
        prefactor=2.*dexp(ms-ns+k*dlog(4*pi))
     endif
-
+    !write(*,*) "prefactor", prefactor
     dimreal=FLOAT(dimint)
     !$OMP PARALLEL DO private(Vols,iVols,viol,k,n,rhg,dL,savNstar,Npart,fin,j,a,x,rh,rjk) &
     !$OMP & private(xmean,ymean,b,c,slope,rjfit,yintercept,xsum,ysum,x2sum,xysum,temp_rho,temp_err,partGood,i)

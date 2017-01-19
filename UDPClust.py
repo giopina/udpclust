@@ -68,11 +68,12 @@ class cluster_UDP:
 
 
     id_err      :: int     :: error flag
-    
+    i_noise :: (default = 0.0001) random gaussian noise that will be added to your data points prior to the clustering if identical points are found. A warning will be printed. Be careful with it!
+
     """
     #### this should be the constructor
 #    def __init__(self,dmat,dim,trj_tot,stride=1,merge=True):
-    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False,n_jobs=-1):
+    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False,n_jobs=-1,i_noise=0.00001):
         """Constructor of the class cluster_UDP:
         input variables
 
@@ -99,6 +100,7 @@ class cluster_UDP:
         delta :: (default=1.0) core set definition parameter
         bigdata :: (default=False) set True if you really want to let the program run with >100k points (it's going to be slow and use a lot of memory)
         n_jobs :: (default = -1) number of processor to use for cKDTree.query (-1 will use all of them)
+        i_noise :: (default = 0.0001) random gaussian noise that will be added to your data points prior to the clustering if identical points are found. A warning will be printed. Be careful with it!
         """
 
         #### store internal variables
@@ -108,7 +110,7 @@ class cluster_UDP:
         self.delta=delta
         self.bigdata=bigdata
         self.n_jobs=n_jobs
-
+        self.i_noise=i_noise
 
         # trj_tot can be a a numpy array shaped (N.frames)x(N.coords)
         #         or a list of numpy arrays
@@ -142,12 +144,23 @@ class cluster_UDP:
 
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
-        self.maxknn=496 ### TODO: this can become a parameter!
+        self.maxknn=496 ### TODO: this can become an input parameter!
         if dmat==None:
 
             print ('Computing distances')
             self.tree=cKDTree(self.trj_sub)
             dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn+1,n_jobs=self.n_jobs)
+
+            if len(np.where(dmat[:,1]==0)[0])>0:
+                print("WARNING: there are identical points!")
+                print("...adding a random noise with amplitude = %f to solve the problem (check this!)"%(self.i_noise))
+                # this maybe stupid because I'm computing distances twice...
+                self.trj_sub+=np.random.normal(scale=self.i_noise,size=self.trj_sub.shape)
+                self.tree=cKDTree(self.trj_sub)
+                #print 'cacca'
+                #return
+                dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn,n_jobs=self.n_jobs)
+            
             Nlist=Nlist[:,1:]
             dmat=dmat[:,1:]
             Nlist+=1
