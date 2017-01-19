@@ -535,6 +535,8 @@ contains
        limit=limit+4-mod(limit,4)
     endif
 
+    open(unit=1,file='rho_pre.dat',action='write')
+    
     ! get prefactor for Volume calculation
     if (mod(dimint,2).eq.0) then
        k=dimint/2
@@ -657,10 +659,13 @@ contains
           Npart=Npart+1
           Nstar(i)=savNstar
        enddo
+       write(1,*) Rho(i), Rho_err(i), rhg, Nstar(i)
        deallocate (Vols,iVols)
+       
+       
     enddo
     !$OMP END PARALLEL DO
-
+    close(1)
     ! Filter with neighbours density (Iterative version)
     filter(:)=.false.
     viol=.true.
