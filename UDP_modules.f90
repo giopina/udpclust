@@ -32,7 +32,6 @@ contains
   !### MAIN CLUSTERING ALGORITHM SUBROUTINE ###
   !############################################
   subroutine dp_advance(dist_mat,Cluster,Rho,filter,dimint,Nlist,Nele,id_err,sensibility,maxknn)
-    !$ use omp_lib
     implicit none
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
     integer,intent(inout) :: id_err
@@ -114,7 +113,6 @@ contains
       allocate (Rho_prob(Nele))
       Rho_prob(:)=0.
       call get_survivors() 
-      !$OMP PARALLEL DO private(i,j) shared(survivors,Rho_prob,Rho,Nsurv,Rho_err)
       do ii=1,Nsurv
          i=survivors(ii)
          do jj=1,Nsurv
@@ -122,7 +120,6 @@ contains
             Rho_prob(i)=Rho_prob(i)-log(1.d0+exp(2.*(Rho(j)-Rho(i))/sqrt(Rho_err(i)**2+Rho_err(j)**2)))
          enddo
       enddo
-      !$OMP END PARALLEL DO
 
       ! copy of rho (not efficient, but clarifies the code) ### !!!
       allocate (Rho_copy(Nele))
@@ -490,7 +487,6 @@ contains
 
   subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
     use critfile
-    !$ use omp_lib
     implicit none
 
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
@@ -559,8 +555,6 @@ contains
     endif
     !write(*,*) "prefactor", prefactor
     dimreal=FLOAT(dimint)
-    !$OMP PARALLEL DO private(Vols,iVols,viol,k,n,rhg,dL,savNstar,Npart,fin,j,a,x,rh,rjk) &
-    !$OMP & private(xmean,ymean,b,c,slope,rjfit,yintercept,xsum,ysum,x2sum,xysum,temp_rho,temp_err,partGood,i)
     
     do i=1,Nele
        allocate (Vols(maxknn))
@@ -664,7 +658,6 @@ contains
        
        
     enddo
-    !$OMP END PARALLEL DO
     close(1)
     ! Filter with neighbours density (Iterative version)
     filter(:)=.false.
