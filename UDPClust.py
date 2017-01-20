@@ -120,12 +120,12 @@ class cluster_UDP:
         ###       that I'm storing anyway rho, filt, cl_idx, frame_cl
         if isinstance(trj_tot,list):
             try:
-                self.trj_tot=np.concatenate(trj_tot)
+                self.trj_tot=np.concatenate(trj_tot) #this creates a copy, correct?
             except:
                 sys.exit('ERROR: problem in the input data set; shape of the arrays in the trj_tot list is wrong')
             self.trj_shape=[ttt.shape for ttt in trj_tot]
         elif isinstance(trj_tot,np.ndarray):
-            self.trj_tot=trj_tot
+            self.trj_tot=np.array(trj_tot) # copying it so I can edit it without risk
             self.trj_shape=trj_tot.shape
         else:
             sys.exit('ERROR: problem in the input data set; unrecognized type of variable trj_tot')
