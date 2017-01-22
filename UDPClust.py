@@ -479,6 +479,20 @@ class cluster_UDP:
         fh.write(stringa)
         fh.close()
         del stringa
+
+    def get_centers_idx(self):
+        """This should give you the indexes of trajectory and frame of each center"""
+        if isinstance(self.trj_shape,list):
+            start_idxs=np.cumsum(np.array([np.sum(shp[0]) for shp in trj_shape]))
+            centers_idx=[]
+            for icl in range(self.n_centers):
+                tot_idx=self.centers_idx[icl]
+                trj_idx=np.searchsorted(start_idxs,ndx,side='right')-1
+                frame_idx=tot_idx-start_idxs[trj_idx]
+                centers_idx.append([trj_idx,frame_idx])
+            return np.array(centers_idx)
+        else:
+            return self.centers_idx
     
 
     def dump_cl(self,name):
