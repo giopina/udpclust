@@ -15,11 +15,13 @@
 import sys
 
 ### copied from baRNAba
-if sys.version_info[0] != 2 or sys.version_info[1] != 7:
-    sys.stderr.write('# Python 2.7 is required. Aborting \n')
-    sys.exit(1)
-else:
-    import argparse
+#if sys.version_info[0] != 2 or sys.version_info[1] != 7:
+#    sys.stderr.write('# Python 2.7 is required. Aborting \n')
+if sys.version_info[0] != 3 or sys.version_info[1] != 6:
+    sys.stderr.write('# Warning: This branch is tested with python 3.6. You may encounter some problems\n')
+#sys.exit(1)
+#else:
+import argparse
 
 import UDPClust as dp
 

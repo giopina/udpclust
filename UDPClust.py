@@ -219,14 +219,14 @@ class cluster_UDP:
         self.id_err=np.array(0,dtype=np.int32)
         #
         # 2) call fortran subroutine
-        print ('fortran clustering')
+        print('fortran clustering')
         t0=time.time()
         UDP_modules.dp_clustering.dp_advance\
             (dmat,self.frame_cl_sub,self.rho_sub,self.filt_sub,self.dim,Nlist,self.id_err,self.sensibility)
 #        del dmat ### I'm not going to use it again. So delete it to make space for assignment
-        print ('Done!'),
-        print time.time()-t0,
-        print ('s; now post-processing')
+        print('Done!'),
+        print(time.time()-t0),
+        print('s; now post-processing')
 
 
     def __postprocessing(self):
@@ -255,7 +255,7 @@ class cluster_UDP:
 
         frames1=self.trj_sub[f1]
         frames0=self.trj_sub[f0]
-        if f1.shape>0: # you need this check because the parallel version crashes for empty input
+        if f1.shape[0]>0: # you need this check because the parallel version crashes for empty input
             tree0=cKDTree(frames0)
             idxs=tree0.query(frames1,n_jobs=self.n_jobs)[1]
             self.rho_sub[f1]=self.rho_sub[f0[idxs]]
@@ -299,7 +299,7 @@ class cluster_UDP:
         #tree=cKDTree(self.trj_sub) ### TODO add an option to turn this off and go bruteforce (may be quicker for d>20? proably not)
         lb=max(self.trj_sub.shape[0],1) ### TODO check what's a smart optimal value for the denominator
 #        print lb
-        Nb=self.Ntot/lb
+        Nb=self.Ntot//lb
         for ib in range(Nb+1):
             ### TODO: make this more efficient (fortran? c++? gpu?)            
             frames=self.trj_tot[ib*lb:(ib+1)*lb] #                                                                               

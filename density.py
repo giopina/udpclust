@@ -22,7 +22,7 @@ for line in open(fname,'r'):
     traj.append([float(x) for x in line.split()])
 traj=np.array(traj)
 #np.random.shuffle(traj)
-print 'shape of input array =',traj.shape
+print('shape of input array =',traj.shape)
 
 
 maxknn=496
@@ -41,7 +41,7 @@ Nlist+=1
 #order=np.argsort(dmat,axis=1)
 #dmat=dmat[order]
 #Nlist=Nlist[order]
-print 'dmat computed'
+print('dmat computed')
 Npoints=traj.shape[0]
 # 1) initialize quantities that will be computed by the fortran subroutine
 #   density for each frame in trj_sub
@@ -63,12 +63,12 @@ Nstar=np.zeros(Npoints,dtype=np.int32)
 
 # 2) call fortran subroutine
 import time
-print 'fortran locknn'
+print('fortran locknn')
 t0=time.time()
 UDP_modules.dp_clustering.get_densities\
     (id_err,dmat,dim,rho,rho_err,filt,Nlist,Nstar)
-print 'Done!',
-print time.time()-t0,
+print('Done!'),
+print(time.time()-t0),
 
 fh=open(sys.argv[3]+'_rho.dat','w')
 iframe=0
