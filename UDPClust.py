@@ -244,7 +244,7 @@ class cluster_UDP:
         self.centers_idx=[]
         self.centers_rho=[]
         for cluster in self.cl_idx_sub:
-            self.centers_idx.append(np.argmax(self.rho_sub[cluster]))
+            self.centers_idx.append(cluster[np.argmax(self.rho_sub[cluster])])
             self.centers_rho.append(np.max(self.rho_sub[cluster]))
         self.centers_idx=np.array(self.centers_idx)*self.stride ### TODO check if this is correct!
         # (if you provided multiple input trajectories the idx will refer to a "concatenated trajectory". This can probably be fixed)
@@ -484,11 +484,11 @@ class cluster_UDP:
     def get_centers_idx(self):
         """This should give you the indexes of trajectory and frame of each center"""
         if isinstance(self.trj_shape,list):
-            start_idxs=np.cumsum(np.array([np.sum(shp[0]) for shp in trj_shape]))
+            start_idxs=np.cumsum(np.array([np.sum(shp[0]) for shp in self.trj_shape]))
             centers_idx=[]
-            for icl in range(self.n_centers):
+            for icl in range(self.n_clusters):
                 tot_idx=self.centers_idx[icl]
-                trj_idx=np.searchsorted(start_idxs,ndx,side='right')-1
+                trj_idx=np.searchsorted(start_idxs,tot_idx,side='right')
                 frame_idx=tot_idx-start_idxs[trj_idx]
                 centers_idx.append([trj_idx,frame_idx])
             return np.array(centers_idx)
