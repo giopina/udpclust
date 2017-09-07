@@ -15,7 +15,7 @@ import sys
 import numpy as np
 from scipy.spatial import distance
 from scipy.spatial import cKDTree
-import UDP_modules
+from udpclust import UDP_modules
 
 class cluster_UDP:    
     """Class cluster_UDP

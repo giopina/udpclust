@@ -12,9 +12,9 @@
 
 import numpy as np
 import sys
-import UDP_modules
+from udpclust import UDP_modules
 
-import UDPClust as dp
+from udpclust import UDPClust as dp
 fname=sys.argv[1]
 dim=int(sys.argv[2])
 traj=[]

@@ -7,7 +7,7 @@
 import pyemma
 import pyemma.msm as msm
 import numpy as np
-import UDPClust as dp
+from udpclust import UDPClust as dp
 
 tica_traj=[]
 for i in range(4):

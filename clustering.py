@@ -23,7 +23,7 @@ if sys.version_info[0] != 3 or sys.version_info[1] != 6:
 #else:
 import argparse
 
-import UDPClust as dp
+from udpclust import UDPClust as dp
 
 def parse():
     parser=argparse.ArgumentParser(description='Unsupervised Density Peak Clustering\nplease cite dErrico et al., 2016')
