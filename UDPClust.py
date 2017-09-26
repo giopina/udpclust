@@ -228,7 +228,6 @@ class cluster_UDP:
         print(time.time()-t0),
         print('s; now post-processing')
 
-
     def __postprocessing(self):
         # 3) post processing of output
         self.frame_cl_sub-=1 #back to python enumeration in arrays
@@ -249,22 +248,8 @@ class cluster_UDP:
         self.centers_idx=np.array(self.centers_idx)*self.stride ### TODO check if this is correct!
         # (if you provided multiple input trajectories the idx will refer to a "concatenated trajectory". This can probably be fixed)
         self.centers_rho=np.array(self.centers_rho)
-
-        # 4) assign densities of nearest-neighbours to the filtered points ### !!! TODO check this
-        f1=np.where(self.filt_sub==1)[0]
-        f0=np.where(self.filt_sub==0)[0]
-
-        frames1=self.trj_sub[f1]
-        frames0=self.trj_sub[f0]
-        if f1.shape[0]>0: # you need this check because the parallel version crashes for empty input
-            tree0=cKDTree(frames0)
-            idxs=tree0.query(frames1,n_jobs=self.n_jobs)[1]
-            self.rho_sub[f1]=self.rho_sub[f0[idxs]]
-#        for i in f1:
-#            dists=distance.cdist(self.trj_sub[f0],np.array([self.trj_sub[i]]))[:,0]
-#            imin=np.argmin(dists)
-#            self.rho_sub[i]=self.rho_sub[f0[imin]]
-
+        # 4) assign densities of nearest-neighbours to the filtered points
+        self.__assign_rho_to_filtered()
 
         # 5) assign trj_tot points to the clusters
         #   index of cluster for each frame in trj_tot
@@ -331,6 +316,24 @@ class cluster_UDP:
         return 
     #END FUNCTION __CLUSTERING
 
+    def __assign_rho_to_filtered(self):
+        """ assign densities of nearest-neighbours to the filtered points 
+        """### !!! TODO check this
+        f1=np.where(self.filt_sub==1)[0]
+        f0=np.where(self.filt_sub==0)[0]
+        
+        frames1=self.trj_sub[f1]
+        frames0=self.trj_sub[f0]
+        if f1.shape[0]>0: # you need this check because the parallel version crashes for empty input
+            tree0=cKDTree(frames0)
+            idxs=tree0.query(frames1,n_jobs=self.n_jobs)[1]
+            self.rho_sub[f1]=self.rho_sub[f0[idxs]]
+#        for i in f1:
+#            dists=distance.cdist(self.trj_sub[f0],np.array([self.trj_sub[i]]))[:,0]
+#            imin=np.argmin(dists)
+#            self.rho_sub[i]=self.rho_sub[f0[imin]]
+
+    
     def __errorcheck(self):
         if self.id_err!=0:
             #TODO: change print into sys.exit( ... )
