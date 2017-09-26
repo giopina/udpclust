@@ -7,9 +7,9 @@ import math
 def larod(dmat,cutoff):
     NFRAMES=np.shape[0]
     if NFRAMES!=np.shape[1]:
-        print '#error: C is not a square matrix'
+        print('#error: C is not a square matrix')
 
-    print "# NFRAMES:", NFRAMES
+    print("# NFRAMES:", NFRAMES)
 
     rho=numpy.zeros(NFRAMES)
     frames=[ i for i in range(0,NFRAMES)]
