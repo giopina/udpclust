@@ -1,32 +1,24 @@
-
-import numpy as np
-import math
-
-
-
-def larod(dmat,cutoff):
-    NFRAMES=np.shape[0]
-    if NFRAMES!=np.shape[1]:
+def clustering(dmat,cutoff):
+    import numpy as np
+    import math
+    NFRAMES=dmat.shape[0]
+    if NFRAMES!=dmat.shape[1]:
         print('#error: C is not a square matrix')
-
+        
     print("# NFRAMES:", NFRAMES)
 
-    rho=numpy.zeros(NFRAMES)
     frames=[ i for i in range(0,NFRAMES)]
-    d_max=0.0
-    for i in range(NFRAMES):
-        for j in range(NFRAMES):
-            if dmat[i][j]<cutoff and i!=j:
-                rho[i]+=1
-            if d>d_max:
-                d_max=d
+
+    rho=np.sum(dmat<cutoff,axis=0)
+    d_max=np.max(dmat)
     delta=[]
     for i in range(NFRAMES):
         temp_min=d_max
-        for j in range(NFRAMES):
-            if rho[j]>rho[i]:
-                if dmat[i][j]<temp_min:
-                    temp_min=dmat[i][j]
+        higher_r_idx=np.where(rho>rho[i])[0]
+        if higher_r_idx.shape[0]==0:
+            delta.append(temp_min)
+            continue
+        temp_min=np.min(dmat[i,higher_r_idx])
         delta.append(temp_min)
 
     return rho, delta
