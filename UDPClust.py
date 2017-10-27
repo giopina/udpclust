@@ -241,15 +241,18 @@ class cluster_UDP:
             self.cl_idx_sub[i_cl].append(i)
             i+=1
             
-        self.centers_idx=[]
+        centers_idx_sub=[]
         self.centers_rho=[]
         for cluster in self.cl_idx_sub:
-            self.centers_idx.append(cluster[np.argmax(self.rho_sub[cluster])])
+            centers_idx_sub.append(cluster[np.argmax(self.rho_sub[cluster])])
             self.centers_rho.append(np.max(self.rho_sub[cluster]))
-        self.centers_idx=np.array(self.centers_idx)*self.stride ### TODO check if this is correct!
+        self.clustercenters=self.trj_sub[np.array(centers_idx_sub)]
+        self.centers_idx=np.array(centers_idx_sub)*self.stride ### TODO check if this is correct!
         # (if you provided multiple input trajectories the idx will refer to a "concatenated trajectory". This can probably be fixed)
         self.centers_rho=np.array(self.centers_rho)
 
+
+        
         # 4) assign densities of nearest-neighbours to the filtered points ### !!! TODO check this
         f1=np.where(self.filt_sub==1)[0]
         f0=np.where(self.filt_sub==0)[0]
