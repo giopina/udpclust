@@ -370,11 +370,12 @@ class cluster_UDP:
 
 
     ### CTRAJS 
-    def get_core_traj(self,tica_traj=None):
+    def get_core_traj(self,tica_traj=None,fake_state=True):
         """Return the core-set discrete trajectory, defined with the "coring" approach (Buchete and Hummer, 2008).
            The idea is to assign each frame which is NOT in a core set, to the last core set visited.
 
         input:
+        fake_state :: whether or not to assign the initial frames to a "fake" core that is never visited again (with index = N_clusters)
         tica_traj :: (optional, NOT SUPPORTED YET) trajectory to assign (different from trj_tot)
         """
         #        if self.ctrajs==None: ### Could I really need this sometimes?
@@ -383,7 +384,7 @@ class cluster_UDP:
         if isinstance(self.trj_shape,list):
             idx=0 # this counts the idx in the concatenated list self.trj_tot 
             for itraj in range(len(self.trj_shape)):
-                old_icl=len(self.cores_idx) # fake microstate, where u start all the trj and never enter again
+                old_icl=self.n_clusters # fake microstate, where u start all the trj and never enter again
                 ct=[]
                 for iframe in range(self.trj_shape[itraj][0]):
                     icl=self.frame_cl[idx]
@@ -402,12 +403,15 @@ class cluster_UDP:
                     if tmp_rho/rhomax>R_CORE:
                         old_icl=icl
                     ###
+                    if old_icl>self.n_clusters and not fake_state:
+                        idx+=1
+                        continue
                     ct.append(old_icl)
                     idx+=1
                 ctrajs.append(np.array(ct))
 
         elif isinstance(self.trj_shape,np.ndarray):
-            old_icl=len(self.cores_idx) # fake microstate, where u start all the trj and never enter again
+            old_icl=self.n_clusters # fake microstate, where u start all the trj and never enter again
             for iframe in range(self.trj_shape[0]):
                 icl=self.frame_cl[iframe]
                 rhomax=self.centers_rho[icl] #store rho of the cluster centers. It will be faster AND more precise
@@ -415,8 +419,10 @@ class cluster_UDP:
                 if tmp_rho/rhomax>R_CORE:
                     old_icl=icl
                     ###
+                if old_icl>self.n_clusters and not fake_state:
+                    continue
                 ct.append(old_icl)
-                old_icl=icl
+                #old_icl=icl ### I think this was a bug... Nov 9 17
             ctrajs=np.array(ctrajs) ### TODO: check if it is better to return a single ndarray or a list, for PyEmma compatibility
             
         return ctrajs
