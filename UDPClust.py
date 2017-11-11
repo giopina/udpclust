@@ -142,6 +142,10 @@ class cluster_UDP:
         if not self.bigdata:
             assert self.trj_sub.shape[0]<100000, 'WARNING: the size of the distance matrix will be large. Maybe you should decrease the stride.(run with bigdata=True to skip this check)'
 
+        self.Ntot=self.trj_tot.shape[0]
+        self.Npoints=self.trj_sub.shape[0]
+
+            
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
         self.maxknn=496 ### TODO: this can become an input parameter!
@@ -150,8 +154,6 @@ class cluster_UDP:
         else:
             assert dmat.shape[0]==self.trj_sub.shape[0],"ERROR: trj_tot[::stride] and distance matrix shapes do not match"
 
-        self.Ntot=self.trj_tot.shape[0]
-        self.Npoints=self.trj_sub.shape[0]
 
         ### perform the clustering
         self.__clustering(dmat,Nlist)
@@ -222,11 +224,11 @@ class cluster_UDP:
         UDP_modules.dp_clustering.dp_advance\
             (dmat,self.frame_cl_sub,self.rho_sub,self.filt_sub,self.dim,Nlist,self.id_err,self.sensibility)
 #        del dmat ### I'm not going to use it again. So delete it to make space for assignment
-        print('Done!'),
-        print(time.time()-t0),
-        print('s; now post-processing')
+        print('Done!')
+        print(time.time()-t0,"s")
 
     def __postprocessing(self):
+        print('now post-processing')
         # 3) post processing of output
         self.frame_cl_sub-=1 #back to python enumeration in arrays
         self.rho_sub[self.filt_sub==1]=0 ### set to zero the densities of the filtered points
