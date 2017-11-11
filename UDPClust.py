@@ -403,7 +403,7 @@ class cluster_UDP:
                     if tmp_rho/rhomax>R_CORE:
                         old_icl=icl
                     ###
-                    if old_icl>self.n_clusters and not fake_state:
+                    if old_icl==self.n_clusters and not fake_state:
                         idx+=1
                         continue
                     ct.append(old_icl)
@@ -419,7 +419,7 @@ class cluster_UDP:
                 if tmp_rho/rhomax>R_CORE:
                     old_icl=icl
                     ###
-                if old_icl>self.n_clusters and not fake_state:
+                if old_icl==self.n_clusters and not fake_state:
                     continue
                 ct.append(old_icl)
                 #old_icl=icl ### I think this was a bug... Nov 9 17
