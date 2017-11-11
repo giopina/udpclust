@@ -1,9 +1,9 @@
 #######################################################################
 ### This Class performs the unsupervised density peak clustering    ###
 ### as described in                                                 ###
-### D'Errico, Facco, Laio, Rodriguez, pending pubblication, 2016    ###
+### D'Errico, Facco, Laio, Rodriguez, pending pubblication, 201?    ###
 ###                                                                 ###
-### The original clustering routines were written by Alex Rodriguez ###
+### The original fortran routines were written by Alex Rodriguez    ###
 ### and adapted for Python compatibility by Giovanni Pinamonti      ###
 ###                                                                 ###
 ### This class was written by Giovanni Pinamonti                    ###
@@ -146,33 +146,45 @@ class cluster_UDP:
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
         self.maxknn=496 ### TODO: this can become an input parameter!
         if dmat==None:
-
-            print ('Computing distances')
-            self.tree=cKDTree(self.trj_sub)
-            dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn+1,n_jobs=self.n_jobs)
-
-            if len(np.where(dmat[:,1]==0)[0])>0:
-                print("WARNING: there are identical points!")
-                print("...adding a random noise with amplitude = %f to solve the problem (check this!)"%(self.i_noise))
-                # this maybe stupid because I'm computing distances twice...
-                self.trj_sub+=np.random.normal(scale=self.i_noise,size=self.trj_sub.shape)
-                self.tree=cKDTree(self.trj_sub)
-                #print 'cacca'
-                #return
-                dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn,n_jobs=self.n_jobs)
-            
-            Nlist=Nlist[:,1:]
-            dmat=dmat[:,1:]
-            Nlist+=1
-            Nlist=np.array(Nlist,dtype=np.int32,order='F')
-            #dmat=np.array(dmat,order='F') ### TODO check if this is needed
-
+            dmat,Nlist=self.__compute_dmat(dump_dmat)
         else:
             assert dmat.shape[0]==self.trj_sub.shape[0],"ERROR: trj_tot[::stride] and distance matrix shapes do not match"
 
         self.Ntot=self.trj_tot.shape[0]
         self.Npoints=self.trj_sub.shape[0]
 
+        ### perform the clustering
+        self.__clustering(dmat,Nlist)
+        del dmat,Nlist ### TODO this is not necessary maybe
+        self.__postprocessing()
+        ### check for errors
+        assert not self.__errorcheck(), 'ERROR: Problem in clustering'
+
+        ### core sets
+        if self.coring:
+            #            self.find_core_sets(R_CORE=np.exp(-self.delta))
+            self.find_core_sets(delta=self.delta)
+            #        else:
+            #            self.find_core_sets(R_CORE=1.)
+
+    def __compute_dmat(self,dump_dmat):
+        print ('Computing distances')
+        self.tree=cKDTree(self.trj_sub)
+        dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn+1,n_jobs=self.n_jobs)
+        
+        if len(np.where(dmat[:,1]==0)[0])>0:
+            print("WARNING: there are identical points!")
+            print("...adding a random noise with amplitude = %f to solve the problem (check this!)"%(self.i_noise))
+            # this maybe stupid because I'm computing distances twice...
+            self.trj_sub+=np.random.normal(scale=self.i_noise,size=self.trj_sub.shape)
+        self.tree=cKDTree(self.trj_sub)
+        dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn,n_jobs=self.n_jobs)
+        
+        Nlist=Nlist[:,1:]
+        dmat=dmat[:,1:]
+        Nlist+=1
+        Nlist=np.array(Nlist,dtype=np.int32,order='F')
+        #dmat=np.array(dmat,order='F') ### TODO check if this is needed
         ### dump the distance matrix if needed for dimensionality calculation
         if dump_dmat:
             print ('Writing distance matrix on file','udp-dmat.dat')
@@ -190,22 +202,8 @@ class cluster_UDP:
                             stringa=''
                 fh.write(stringa)
                 stringa=''
-
-        ### perform the clustering
-        self.__clustering(dmat,Nlist)
-        del dmat,Nlist ### TODO this is not necessary maybe
-        self.__postprocessing()
-        ### check for errors
-        assert not self.__errorcheck(), 'ERROR: Problem in clustering'
-
-        ### core sets
-        if self.coring:
-#            self.find_core_sets(R_CORE=np.exp(-self.delta))
-            self.find_core_sets(delta=self.delta)
-#        else:
-#            self.find_core_sets(R_CORE=1.)
-
-
+        return dmat,Nlist
+    
     def __clustering(self,dmat,Nlist):
         #
         # 1) initialize quantities that will be computed by the fortran subroutine
