@@ -31,7 +31,7 @@ contains
   !############################################
   !### MAIN CLUSTERING ALGORITHM SUBROUTINE ###
   !############################################
-  subroutine dp_advance(dist_mat,Cluster,Rho,filter,dimint,Nlist,Nele,id_err,sensibility,maxknn)
+  subroutine dp_advance(dist_mat,Cluster,Rho,Rho_err,filter,dimint,Nlist,Nstar,Nele,id_err,sensibility,maxknn)
     !$ use omp_lib
     implicit none
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
@@ -43,11 +43,11 @@ contains
     real*8, intent(in) :: sensibility
 
     ! These variables are used in densities calculation and then passed to clustering
-    real*8,intent(inout) :: Rho(Nele)        ! Density
-    real*8 :: Rho_err(Nele)    ! Density error
-    logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
-    integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc
-    integer :: Nstar(Nele)   ! N. of NN taken for comp dens
+    real*8,intent(in) :: Rho(Nele)        ! Density
+    real*8,intent(in) :: Rho_err(Nele)    ! Density error
+    logical,intent(in) :: filter(Nele)  ! Pnt with anomalous dens
+    integer,intent(in) :: Nlist(Nele,maxknn) ! Neighbour list within dc
+    integer,intent(in) :: Nstar(Nele)   ! N. of NN taken for comp dens
     integer :: survivors(Nele) 
     integer :: Nsurv           
        
@@ -65,7 +65,7 @@ contains
     integer :: Nclus_m                  ! Number of Cluster merged
 
     id_err=0
-    call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn) 
+    !call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn) 
     call clustering(id_err)                      ! get Clusters
     if(Nclus.gt.1) then
        if(sensibility.gt.0.0) then

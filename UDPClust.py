@@ -213,16 +213,20 @@ class cluster_UDP:
         self.frame_cl_sub=np.zeros(self.Npoints,dtype=np.int32)
         #   density for each frame in trj_sub
         self.rho_sub=np.zeros(self.Npoints)
+        rho_err=np.zeros(self.Npoints)
         #   filter value for each frame in trj_sub (either 0 or 1)
         self.filt_sub=np.zeros(self.Npoints,dtype=np.int32)
         #    error flag
         self.id_err=np.array(0,dtype=np.int32)
         #
+        Nstar=np.zeros(self.Npoints,dtype=np.int32)
         # 2) call fortran subroutine
-        print('fortran clustering')
+        print('fortran density estimation')
         t0=time.time()
+        UDP_modules.dp_clustering.get_densities(self.id_err,dmat,self.dim,self.rho_sub,rho_err,self.filt_sub,Nlist,Nstar)
+        print('fortran clustering')
         UDP_modules.dp_clustering.dp_advance\
-            (dmat,self.frame_cl_sub,self.rho_sub,self.filt_sub,self.dim,Nlist,self.id_err,self.sensibility)
+            (dmat,self.frame_cl_sub,self.rho_sub,rho_err,self.filt_sub,self.dim,Nlist,Nstar,self.id_err,self.sensibility)
 #        del dmat ### I'm not going to use it again. So delete it to make space for assignment
         print('Done!')
         print(time.time()-t0,"s")
