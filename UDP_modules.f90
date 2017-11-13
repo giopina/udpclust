@@ -514,8 +514,8 @@ contains
     real*8 :: is,js,ks,ms,ns
     integer :: kadd
     integer :: niter,nfilter
-    real*8,allocatable :: Vols(:)
-    !integer,allocatable :: iVols(:)
+    !real*8,allocatable :: Vols(:)
+    real*8 :: Vols(Nele,maxknn)
     real*8, parameter :: pi=3.14159265359
     real*8 :: prefactor
     real*8 :: rhg,dL,rjaver,rjfit
@@ -560,20 +560,21 @@ contains
     !$OMP PARALLEL DO private(Vols,iVols,viol,k,n,rhg,dL,savNstar,Npart,fin,j,a,x,rh,rjk) &
     !$OMP & private(xmean,ymean,b,c,slope,rjfit,yintercept,xsum,ysum,x2sum,xysum,temp_rho,temp_err,partGood,i)
     
+
+    !Vols(:)=9.9E9
+    !do j=1,maxknn 
+    !   Vols(j)=prefactor*dist_mat(i,j)**dimint
+    !enddo
+    Vols=prefactor*dist_mat**dimint
+    
     do i=1,Nele
-       allocate (Vols(maxknn))
-       !allocate (iVols(maxknn))
-       Vols(:)=9.9E9
-       do j=1,maxknn 
-          Vols(j)=prefactor*dist_mat(i,j)**dimint
-       enddo
        !### get nstar     
        viol=.false.
        k=minknn
        n=1
        do while (.not.viol)
-          rhg=dfloat(k)/Vols(k)
-          dL=dabs(4.*(rhg*(Vols(k)-Vols(3*k/4)-Vols(k/4)))/dfloat(k))
+          rhg=dfloat(k)/Vols(i,k)
+          dL=dabs(4.*(rhg*(Vols(i,k)-Vols(i,3*k/4)-Vols(i,k/4)))/dfloat(k))
           if (dL.gt.critV(n)) then
              viol=.true.
              cycle
@@ -586,7 +587,7 @@ contains
        if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
        ! ### ##########################
        Rho_err(i)=-9.9d99
-       rhg=dfloat(Nstar(i))/Vols(Nstar(i)) ! Rho without fit
+       rhg=dfloat(Nstar(i))/Vols(i,Nstar(i)) ! Rho without fit
        Rho(i)=rhg
        savNstar=Nstar(i)
        Npart=4
@@ -603,9 +604,9 @@ contains
                 n=n+j
                 x(k)=dfloat(k)
                 if (k.eq.1) then 
-                   rh(k)=Vols(n)/a
+                   rh(k)=Vols(i,n)/a
                 else
-                   rh(k)=(Vols(n)-Vols(n-j))/a
+                   rh(k)=(Vols(i,n)-Vols(i,n-j))/a
                 endif
              enddo
              xmean=sum(x(:))/dfloat(Npart)
@@ -657,8 +658,6 @@ contains
           Npart=Npart+1
           Nstar(i)=savNstar
        enddo
-       !deallocate (Vols,iVols)
-       deallocate (Vols)
     enddo
     !$OMP END PARALLEL DO
 
