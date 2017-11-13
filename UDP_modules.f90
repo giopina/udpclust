@@ -518,7 +518,8 @@ contains
     real*8 :: Vols(Nele,maxknn)
     real*8, parameter :: pi=3.14159265359
     real*8 :: prefactor
-    real*8 :: rhg,dL,rjaver,rjfit
+    !real*8 :: rhg,dL,rjaver,rjfit
+    real*8 :: rhg,Dk,rjaver,rjfit
     real*8,allocatable :: x(:),rh(:),rjk(:)
     logical :: viol
     real*8 :: xmean,ymean,a,b,c            !  FIT
@@ -530,10 +531,13 @@ contains
 
     id_err=0
 
+
+    ! ### TODO: check this. Now that I'm not dividing by 4 limit makes less sense...
     limit=min(maxknn,nint(0.5*Nele))
     if (mod(limit,4).ne.0) then
        limit=limit+4-mod(limit,4)
     endif
+    !write(*,*) limit,maxknn ! ### what is the meaning of this limit ?
 
     ! get prefactor for Volume calculation
     if (mod(dimint,2).eq.0) then
@@ -568,24 +572,28 @@ contains
     Vols=prefactor*dist_mat**dimint
     
     do i=1,Nele
-       !### get nstar     
+       ! ### get nstar     
        viol=.false.
-       k=minknn
-       n=1
-       do while (.not.viol)
-          rhg=dfloat(k)/Vols(i,k)
-          dL=dabs(4.*(rhg*(Vols(i,k)-Vols(i,3*k/4)-Vols(i,k/4)))/dfloat(k))
-          if (dL.gt.critV(n)) then
-             viol=.true.
-             cycle
+       k=minknn ! ### TODO: check this. it was 4 before, what is a meaningful value I can use now?
+       !n=1
+       do k=1,maxknn !while (.not.viol)
+          !rhg=dfloat(k)/Vols(i,k)
+          j=Nlist(i,k)
+          !dL=dabs(4.*(rhg*(Vols(i,k)-Vols(i,3*k/4)-Vols(i,k/4)))/dfloat(k))
+          Dk= -2*( log(Vols(i,k)) + log(Vols(j,k)) - 2*log(Vols(i,k)+Vols(j,k)) + log(4.) )
+          !if (dL.gt.critV(n)) then
+          if (Dk.gt.23.928) then
+             exit
           endif
-          n=n+1
-          k=k+4
-          if (k.gt.limit) viol=.true.
+          !n=n+1
+          !k=k+1
+          !if (k.gt.limit) viol=.true.
+          if (k.gt.limit) exit
        enddo
-       Nstar(i)=k-4 ! ### ha senso?
+       Nstar(i)=k-1 ! ### ha senso?
        if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
-       ! ### ##########################
+
+       ! ### get effective rho
        Rho_err(i)=-9.9d99
        rhg=dfloat(Nstar(i))/Vols(i,Nstar(i)) ! Rho without fit
        Rho(i)=rhg
