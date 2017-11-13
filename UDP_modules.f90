@@ -561,38 +561,24 @@ contains
     endif
     !write(*,*) "prefactor", prefactor
     dimreal=FLOAT(dimint)
-    !$OMP PARALLEL DO private(Vols,iVols,viol,k,n,rhg,dL,savNstar,Npart,fin,j,a,x,rh,rjk) &
-    !$OMP & private(xmean,ymean,b,c,slope,rjfit,yintercept,xsum,ysum,x2sum,xysum,temp_rho,temp_err,partGood,i)
-    
 
-    !Vols(:)=9.9E9
-    !do j=1,maxknn 
-    !   Vols(j)=prefactor*dist_mat(i,j)**dimint
-    !enddo
     Vols=prefactor*dist_mat**dimint
     
     do i=1,Nele
        ! ### get nstar     
-       viol=.false.
-       k=minknn ! ### TODO: check this. it was 4 before, what is a meaningful value I can use now?
-       !n=1
-       do k=1,maxknn !while (.not.viol)
-          !rhg=dfloat(k)/Vols(i,k)
+       do k=minknn,maxknn         
           j=Nlist(i,k)
-          !dL=dabs(4.*(rhg*(Vols(i,k)-Vols(i,3*k/4)-Vols(i,k/4)))/dfloat(k))
           Dk= -2*( log(Vols(i,k)) + log(Vols(j,k)) - 2*log(Vols(i,k)+Vols(j,k)) + log(4.) )
-          !if (dL.gt.critV(n)) then
           if (Dk.gt.23.928) then
              exit
           endif
-          !n=n+1
-          !k=k+1
-          !if (k.gt.limit) viol=.true.
           if (k.gt.limit) exit
        enddo
        Nstar(i)=k-1 ! ### ha senso?
        if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
+    enddo
 
+    do i=1,Nele
        ! ### get effective rho
        Rho_err(i)=-9.9d99
        rhg=dfloat(Nstar(i))/Vols(i,Nstar(i)) ! Rho without fit
@@ -667,7 +653,6 @@ contains
           Nstar(i)=savNstar
        enddo
     enddo
-    !$OMP END PARALLEL DO
 
     ! Filter with neighbours density (Iterative version)
     filter(:)=.false.
