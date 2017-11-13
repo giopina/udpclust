@@ -576,6 +576,7 @@ contains
        enddo
        Nstar(i)=k-1 ! ### ha senso?
        if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
+    write(12345,*) i,Nstar(i)
     enddo
 
     do i=1,Nele
