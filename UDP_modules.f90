@@ -515,7 +515,7 @@ contains
     integer :: kadd
     integer :: niter,nfilter
     real*8,allocatable :: Vols(:)
-    integer,allocatable :: iVols(:)
+    !integer,allocatable :: iVols(:)
     real*8, parameter :: pi=3.14159265359
     real*8 :: prefactor
     real*8 :: rhg,dL,rjaver,rjfit
@@ -562,9 +562,9 @@ contains
     
     do i=1,Nele
        allocate (Vols(maxknn))
-       allocate (iVols(maxknn))
+       !allocate (iVols(maxknn))
        Vols(:)=9.9E9
-       do j=1,maxknn !TODO:skip the first neighbour!
+       do j=1,maxknn 
           Vols(j)=prefactor*dist_mat(i,j)**dimint
        enddo
        !### get nstar     
@@ -657,7 +657,8 @@ contains
           Npart=Npart+1
           Nstar(i)=savNstar
        enddo
-       deallocate (Vols,iVols)
+       !deallocate (Vols,iVols)
+       deallocate (Vols)
     enddo
     !$OMP END PARALLEL DO
 
