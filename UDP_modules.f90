@@ -43,8 +43,8 @@ contains
     real*8, intent(in) :: sensibility
 
     ! These variables are used in densities calculation and then passed to clustering
-    real*8,intent(in) :: Rho(Nele)        ! Density
-    real*8,intent(in) :: Rho_err(Nele)    ! Density error
+    real*8,intent(inout) :: Rho(Nele)        ! Density
+    real*8,intent(in) :: Rho_err(Nele)    ! Density error NB: won't make sense for filtered points...
     logical,intent(in) :: filter(Nele)  ! Pnt with anomalous dens
     integer,intent(in) :: Nlist(Nele,maxknn) ! Neighbour list within dc
     integer,intent(in) :: Nstar(Nele)   ! N. of NN taken for comp dens
@@ -219,6 +219,7 @@ contains
             enddo
             if (ig.ne.-1) then
                Cluster(i)=Cluster(ig)
+               Rho(i)=Rho(ig) ! assign also the same density of the closest unfiltered
             else
                viol=.true.
             endif
@@ -247,6 +248,7 @@ contains
                enddo
                if (ig.ne.-1) then
                   Cluster(i)=Cluster(ig)
+                  Rho(i)=Rho(ig)
                   NEWASS=.TRUE.
                else
                   viol=.true.
@@ -498,11 +500,9 @@ contains
     real*8,intent(in) :: dist_mat(Nele,maxknn)        !
     integer,intent(in) :: Nele                   ! Number of elements
     integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
-
     ! These variables are used in densities calculation and then passed to clustering
     integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc ### dimension 2 maybe can be reduced but maybe not (before was =limit)
     integer,intent(inout) :: Nstar(Nele)   ! N. of NN taken for comp dens
-
     integer :: id_err
     !! Local variables
     integer :: limit
@@ -512,10 +512,9 @@ contains
     real*8, parameter :: pi=3.14159265359
     real*8 :: prefactor
     real*8 :: rhg,dL
-    logical :: viol
     real*8 :: dimreal
 
-    id_err=0
+    id_err=0 ! ### TODO: this is actually useless...
 
     limit=min(maxknn,nint(0.5*Nele))
     if (mod(limit,4).ne.0) then
@@ -549,35 +548,26 @@ contains
     
     do i=1,Nele
        !### get nstar     
-       viol=.false.
-       k=minknn
        n=1
-       do while (.not.viol)
+       do k=minknn,maxknn,4
           rhg=dfloat(k)/Vols(i,k)
           dL=dabs(4.*(rhg*(Vols(i,k)-Vols(i,3*k/4)-Vols(i,k/4)))/dfloat(k))
           if (dL.gt.critV(n)) then
-             viol=.true.
-             cycle
+             exit
           endif
           n=n+1
-          k=k+4
-          if (k.gt.limit) viol=.true.
+          if (k.gt.limit) exit !viol=.true.
        enddo
        Nstar(i)=k-4 ! ### ha senso?
        if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
     enddo
-
     return
-
   end subroutine get_nstar
 
   subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
-    use critfile
-    !$ use omp_lib
     implicit none
 
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
-    integer,parameter :: minknn=8     ! minimum number of neighbours to explore
     !!Global variables
     real*8,intent(in) :: dist_mat(Nele,maxknn)        !
     integer,intent(in) :: Nele                   ! Number of elements
@@ -599,7 +589,7 @@ contains
     real*8 :: Vols(Nele,maxknn)
     real*8, parameter :: pi=3.14159265359
     real*8 :: prefactor
-    real*8 :: rhg,dL,rjaver,rjfit
+    real*8 :: rhg,rjaver,rjfit
     real*8,allocatable :: x(:),rh(:),rjk(:)
     logical :: viol
     real*8 :: xmean,ymean,a,b,c            !  FIT
@@ -610,7 +600,6 @@ contains
     real*8 :: dimreal
 
     id_err=0
-
     ! get prefactor for Volume calculation
     if (mod(dimint,2).eq.0) then
        k=dimint/2

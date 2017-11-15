@@ -71,8 +71,8 @@ class cluster_UDP:
     i_noise :: (default = 0.0001) random gaussian noise that will be added to your data points prior to the clustering if identical points are found. A warning will be printed. Be careful with it!
 
     """
+    
     #### this should be the constructor
-#    def __init__(self,dmat,dim,trj_tot,stride=1,merge=True):
     def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False,n_jobs=-1,i_noise=0.00001):
         """Constructor of the class cluster_UDP:
         input variables
@@ -152,8 +152,8 @@ class cluster_UDP:
         if dmat==None:
             dmat,Nlist=self.__compute_dmat(dump_dmat)
         else:
+            assert stride==1,"ERROR: stride larger than one not supported when distance matrix is provided"
             assert dmat.shape[0]==self.trj_sub.shape[0],"ERROR: trj_tot[::stride] and distance matrix shapes do not match"
-
 
         ### perform the clustering
         self.__clustering(dmat,Nlist)
@@ -237,6 +237,7 @@ class cluster_UDP:
         print('now post-processing')
         # 3) post processing of output
         self.frame_cl_sub-=1 #back to python enumeration in arrays
+        save_rho=np.array(self.rho_sub) ### save density of filtered points! TODO: fix this
         self.rho_sub[self.filt_sub==1]=0 ### set to zero the densities of the filtered points
 
         ### I do this later with all the points!
@@ -255,9 +256,10 @@ class cluster_UDP:
         self.centers_idx=np.array(centers_idx_sub)*self.stride ### TODO check if this is correct!
         # (if you provided multiple input trajectories the idx will refer to a "concatenated trajectory". This can probably be fixed)
         self.centers_rho=np.array(self.centers_rho)
-        # 4) assign densities of nearest-neighbours to the filtered points
-        self.__assign_rho_to_filtered()
 
+        self.rho_sub=save_rho
+        # 4) assign densities of nearest-neighbours to the filtered points
+        #self.__assign_rho_to_filtered()
         # 5) assign trj_tot points to the clusters
         #   index of cluster for each frame in trj_tot
         self.frame_cl=np.zeros(self.Ntot,dtype=np.int32)
@@ -286,25 +288,18 @@ class cluster_UDP:
         ###
         
         ### this part may take some time
+        # Here I compute the distances between the points in the total traj and the
+        # ones used in the clustering. This will not happen if dmat is provided (I
+        # assume that if you already computed dmat there's not point in using a stride.
         t0=time.time()
-
         ### TODO: this can be stored just once at the beginning
         #tree=cKDTree(self.trj_sub) ### TODO add an option to turn this off and go bruteforce (may be quicker for d>20? proably not)
         lb=max(self.trj_sub.shape[0],1) ### TODO check what's a smart optimal value for the denominator
 #        print lb
         Nb=self.Ntot//lb
         for ib in range(Nb+1):
-            ### TODO: make this more efficient (fortran? c++? gpu?)            
-            frames=self.trj_tot[ib*lb:(ib+1)*lb] #                                                                               
-            #frame=self.trj_tot[iframe] # 
-            ###
-            #dists=distance.cdist(self.trj_sub,np.array([frame]))[:,0]
-            #sqdists=distance.cdist(self.trj_sub,np.array([frame]),'sqeuclidean')[:,0] # should be faster
-            #idx=np.argmin(sqdists)
-            ###
-#            sqdists=distance.cdist(self.trj_sub,frames,'sqeuclidean') # should be even faster
-#            idxs=np.argmin(sqdists,axis=0)
-#            print ib,Nb,frames.shape
+
+            frames=self.trj_tot[ib*lb:(ib+1)*lb] 
             if frames.shape[0]==0: # you need this check because the parallel version crashes for empty input
                 continue
             idxs=self.tree.query(frames,n_jobs=self.n_jobs)[1] # this is freaking fast
@@ -321,8 +316,8 @@ class cluster_UDP:
         print (time.time()-t0)
         print ("finished postprocessing")
         return 
-    #END FUNCTION __CLUSTERING
 
+    
     def __assign_rho_to_filtered(self):
         """ assign densities of nearest-neighbours to the filtered points 
         """### !!! TODO check this
@@ -335,10 +330,6 @@ class cluster_UDP:
             tree0=cKDTree(frames0)
             idxs=tree0.query(frames1,n_jobs=self.n_jobs)[1]
             self.rho_sub[f1]=self.rho_sub[f0[idxs]]
-#        for i in f1:
-#            dists=distance.cdist(self.trj_sub[f0],np.array([self.trj_sub[i]]))[:,0]
-#            imin=np.argmin(dists)
-#            self.rho_sub[i]=self.rho_sub[f0[imin]]
 
     
     def __errorcheck(self):
