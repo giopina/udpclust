@@ -223,6 +223,8 @@ class cluster_UDP:
         # 2) call fortran subroutine
         print('fortran density estimation')
         t0=time.time()
+        UDP_modules.dp_clustering.get_nstar(self.id_err,dmat,self.dim,Nlist,Nstar)
+        print(Nstar)
         UDP_modules.dp_clustering.get_densities(self.id_err,dmat,self.dim,self.rho_sub,rho_err,self.filt_sub,Nlist,Nstar)
         print('fortran clustering')
         UDP_modules.dp_clustering.dp_advance\

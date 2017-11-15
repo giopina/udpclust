@@ -488,9 +488,8 @@ contains
     !
   end subroutine dp_advance
 
-  subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
+  subroutine get_nstar(id_err,dist_mat,Nele,dimint,Nlist,Nstar,maxknn)
     use critfile
-    !$ use omp_lib
     implicit none
 
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
@@ -501,9 +500,6 @@ contains
     integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
 
     ! These variables are used in densities calculation and then passed to clustering
-    real*8,intent(inout) :: Rho(Nele)        ! Density
-    real*8,intent(inout) :: Rho_err(Nele)    ! Density error
-    logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
     integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc ### dimension 2 maybe can be reduced but maybe not (before was =limit)
     integer,intent(inout) :: Nstar(Nele)   ! N. of NN taken for comp dens
 
@@ -511,21 +507,12 @@ contains
     !! Local variables
     integer :: limit
     integer :: i,j,k,m,n
-    real*8 :: is,js,ks,ms,ns
-    integer :: kadd
-    integer :: niter,nfilter
-    !real*8,allocatable :: Vols(:)
+    real*8 :: ms,ns
     real*8 :: Vols(Nele,maxknn)
     real*8, parameter :: pi=3.14159265359
     real*8 :: prefactor
-    real*8 :: rhg,dL,rjaver,rjfit
-    real*8,allocatable :: x(:),rh(:),rjk(:)
+    real*8 :: rhg,dL
     logical :: viol
-    real*8 :: xmean,ymean,a,b,c            !  FIT
-    real*8 :: xsum,ysum,x2sum,xysum
-    integer :: Npart, partGood,savNstar,fin
-    real*8 :: slope,yintercept
-    real*8 :: temp_err,temp_rho
     real*8 :: dimreal
 
     id_err=0
@@ -555,16 +542,9 @@ contains
        enddo
        prefactor=2.*dexp(ms-ns+k*dlog(4*pi))
     endif
-    !write(*,*) "prefactor", prefactor
-    dimreal=FLOAT(dimint)
-    !$OMP PARALLEL DO private(Vols,iVols,viol,k,n,rhg,dL,savNstar,Npart,fin,j,a,x,rh,rjk) &
-    !$OMP & private(xmean,ymean,b,c,slope,rjfit,yintercept,xsum,ysum,x2sum,xysum,temp_rho,temp_err,partGood,i)
-    
 
-    !Vols(:)=9.9E9
-    !do j=1,maxknn 
-    !   Vols(j)=prefactor*dist_mat(i,j)**dimint
-    !enddo
+    dimreal=FLOAT(dimint)
+
     Vols=prefactor*dist_mat**dimint
     
     do i=1,Nele
@@ -585,6 +565,78 @@ contains
        enddo
        Nstar(i)=k-4 ! ### ha senso?
        if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
+    enddo
+
+    return
+
+  end subroutine get_nstar
+
+  subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
+    use critfile
+    !$ use omp_lib
+    implicit none
+
+    integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
+    integer,parameter :: minknn=8     ! minimum number of neighbours to explore
+    !!Global variables
+    real*8,intent(in) :: dist_mat(Nele,maxknn)        !
+    integer,intent(in) :: Nele                   ! Number of elements
+    integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
+
+    ! These variables are used in densities calculation and then passed to clustering
+    real*8,intent(inout) :: Rho(Nele)        ! Density
+    real*8,intent(inout) :: Rho_err(Nele)    ! Density error
+    logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
+    integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc ### dimension 2 maybe can be reduced but maybe not (before was =limit)
+    integer,intent(inout) :: Nstar(Nele)   ! N. of NN taken for comp dens
+
+    integer :: id_err
+    !! Local variables
+    integer :: i,j,k,m,n
+    real*8 :: is,js,ks,ms,ns
+    integer :: kadd
+    integer :: niter,nfilter
+    real*8 :: Vols(Nele,maxknn)
+    real*8, parameter :: pi=3.14159265359
+    real*8 :: prefactor
+    real*8 :: rhg,dL,rjaver,rjfit
+    real*8,allocatable :: x(:),rh(:),rjk(:)
+    logical :: viol
+    real*8 :: xmean,ymean,a,b,c            !  FIT
+    real*8 :: xsum,ysum,x2sum,xysum
+    integer :: Npart, partGood,savNstar,fin
+    real*8 :: slope,yintercept
+    real*8 :: temp_err,temp_rho
+    real*8 :: dimreal
+
+    id_err=0
+
+    ! get prefactor for Volume calculation
+    if (mod(dimint,2).eq.0) then
+       k=dimint/2
+       m=1
+       do i=1,k
+          m=m*i
+       enddo
+       prefactor=pi**k/(dfloat(m))
+    else
+       k=(dimint-1)/2
+       ms=0.
+       do i=1,k
+          ms=ms+dlog(dfloat(i))
+       enddo
+       ns=ms
+       do i=k+1,dimint
+          ns=ns+dlog(dfloat(i))
+       enddo
+       prefactor=2.*dexp(ms-ns+k*dlog(4*pi))
+    endif
+
+    dimreal=FLOAT(dimint)    
+
+    Vols=prefactor*dist_mat**dimint !  ### I'm computing volumes twice!!
+    
+    do i=1,Nele
        ! ### ##########################
        Rho_err(i)=-9.9d99
        rhg=dfloat(Nstar(i))/Vols(i,Nstar(i)) ! Rho without fit
@@ -659,7 +711,6 @@ contains
           Nstar(i)=savNstar
        enddo
     enddo
-    !$OMP END PARALLEL DO
 
     ! Filter with neighbours density (Iterative version)
     filter(:)=.false.
@@ -718,6 +769,7 @@ contains
 
   end subroutine get_densities
 
+  
   SUBROUTINE HPSORT(N,RA,s_order)
     implicit none
     integer N,s_order(N)
