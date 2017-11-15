@@ -568,7 +568,8 @@ contains
        ! ### get nstar     
        do k=minknn,maxknn         
           j=Nlist(i,k)
-          Dk= -2*( log(Vols(i,k)) + log(Vols(j,k)) - 2*log(Vols(i,k)+Vols(j,k)) + log(4.) )
+          !Dk= -2*( log(Vols(i,k)) + log(Vols(j,k)) - 2*log(Vols(i,k)+Vols(j,k)) + log(4.) )
+          Dk= -2*( log(Vols(i,k)*Vols(j,k)/(Vols(i,k)+Vols(j,k))**2) + log(4.) )
           if (Dk.gt.23.928) then
              exit
           endif
@@ -576,7 +577,7 @@ contains
        enddo
        Nstar(i)=k-1 ! ### ha senso?
        if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
-    write(12345,*) i,Nstar(i)
+    write(12345,*) i,Nstar(i),Dk
     enddo
 
     do i=1,Nele
