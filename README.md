@@ -3,17 +3,15 @@
 make
 (or use the command: f2py -c -m UDP_modules critfile.f90 UDP_modules.f90)
 
-then add the directory to PYTHONPATH or copy the files
-     UDP_modules.so
-     UDPClust.py
-in the working directory
-(I know, there's a better way to do this installation, but I don't know how to do it)
+then add the directory to PYTHONPATH 
+(I know, there's surely a better way to do this installation, but I don't know how to do it)
 
 # USAGE
 ## In your python script / Jupyter notebook
 ### To call the subroutine:
-      import UDPClust as dp
+      from udpclust import UDPClust as dp
       clustering=dp.cluster_UDP(dim,trj_tot)
+
 ##### Input variables:
       dim :: intrinsic dimension of the input data set
 
@@ -21,7 +19,7 @@ in the working directory
 
       dmat :: (Optional) matrix of distances between data points. If not provided by the user will be computed as the euclidean distances between points in trj_tot (I never use it, so this is not 100% tested)
 
-      stride :: (default=1) even with KDTrees distance matrix calculation and storage is unpractical for N.frames >~ 10^5 use a stride>1 in order to perform the clustering only on a subset of the total dataset. The rest of the points will be assigned later
+      stride :: (default=1) even with KDTrees distance matrix calculation and storage is unpractical for N.frames >~ 10^5 (use a stride>1 in order to perform the clustering only on a subset of the total dataset. The rest of the points will be assigned later)
 
       dump_dmat :: (default=False) set to True to save the distance matrix on disk as udp-dmat.dat
 
@@ -50,17 +48,15 @@ Here the results of clustering are stored
     clustering.n_clusters  # number of clusters identified
     clustering.rho         # density for each frame
     clustering.centers_rho # density of the center of each cluster
-    clustering.centers_idx # indexes of the center of each cluster (if you provided multiple input trajectories the idx will refer to a "concatenated trajectory". This can probably be fixed)
-
+    clustering.centers_idx # indexes of the center of each cluster  (i.e. points with high density). If you provided multiple input trajectories the idx will refer to a "concatenated trajectory". This can probably be fixed.
+    clustering.clustercenters # coordinates of the centers of each cluster
 
 Other internal variables are
 
-    clustering.filt       # 1 if the computed density is not statistically realiable, 0 if was fine. Points with filt=1 were given the density of the closer filt=0 point
-    clustering.cores_idx  # indexes of frames in each cluster's core (i.e. points with high density)
-
+    clustering.filt       # 1 if the computed density is not statistically realiable, 0 if it is ok. Points with filt=1 are given the density of the closer filt=0 point
 
 ##### Other functions
-     clustering.get_core_trajs() # return the discrete trajectories using the coring approach of Hummer and Buchete
+     clustering.get_core_trajs() # return the discrete trajectories using the coring approach of Hummer and Buchete [1]
 
      clustering.get_centers()     #Computes the average position of each cluster (Not the best choice for a "center". You should use the argmax(rho) for each cluster
 
@@ -76,3 +72,7 @@ The fortran modules are based on a program written by Alex Rodriguez
 
 Please cite 
 d'Errico et al., PNAS, 2017 (soon to be published. Maybe)
+
+
+
+     [1] Buchete, Nicolae-Viorel, and Gerhard Hummer. "Coarse master equations for peptide folding dynamics." The Journal of Physical Chemistry B 112.19 (2008): 6057-6069.
