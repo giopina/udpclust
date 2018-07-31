@@ -13,7 +13,7 @@ then add the directory to PYTHONPATH
       clustering=dp.cluster_UDP(dim,trj_tot)
 
 ##### Input variables:
-      dim :: intrinsic dimension of the input data set
+      dim :: intrinsic dimension of the input data set (if unknown can be estimated using the algorithm described in [5])
 
       trj_tot :: coordinates of the points in the data set that I want to cluster should be shaped (N.frames)x(N.coords), or be a list of such numpy arrays
 
@@ -60,19 +60,25 @@ Other internal variables are
 
      clustering.get_centers()     #Computes the average position of each cluster (Not the best choice for a "center". You should use the argmax(rho) for each cluster
 
-## From terminal
-
-TODO: add this
-
 
 # AUTHORS
 This class was written by Giovanni Pinamonti, SISSA, Trieste, 2016
 
 The fortran modules are based on a program written by Alex Rodriguez
 
-Please cite 
-d'Errico et al., PNAS, 2017 (soon to be published. Maybe)
+Please cite d'Errico et al. [3] if you use this.
 
+# References
 
+###### Core-MSM approach:
+[1] Buchete, Nicolae-Viorel, and Gerhard Hummer. "Coarse master equations for peptide folding dynamics." *The Journal of Physical Chemistry B* 112.19 (2008): 6057-6069.
 
-     [1] Buchete, Nicolae-Viorel, and Gerhard Hummer. "Coarse master equations for peptide folding dynamics." The Journal of Physical Chemistry B 112.19 (2008): 6057-6069.
+###### Density peak clustering:
+[2] Rodriguez, Alex, and Alessandro Laio. "Clustering by fast search and find of density peaks." *Science* 344.6191 (2014): 1492-1496.
+
+[3] d'Errico, Maria, et al. "Automatic topography of high-dimensional data sets by non-parametric Density Peak clustering." *arXiv preprint arXiv:1802.10549* (2018).
+
+###### Others:
+[4] Rodriguez, Alex, et al. "Computing the Free Energy without Collective Variables." *Journal of chemical theory and computation* 14.3 (2018): 1206-1215.
+
+[5] Facco, Elena, et al. "Estimating the intrinsic dimension of datasets by a minimal neighborhood information." *Scientific reports* 7.1 (2017): 12140.
