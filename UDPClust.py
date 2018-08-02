@@ -30,13 +30,6 @@ class cluster_UDP:
 
     internal variables:
 
-      # input parameters
-    coring      :: bool    :: True to define core sets
-    delta       :: float   :: parameter for core set definition
-    sensibility :: float   :: parameter in clusters merging
-    bigdata     :: bool    :: (default = False) set True if you really want to let the program run with >100k points (it's going to be really slow)
-    n_jobs      :: int     :: (default = -1) number of processor to use for cKDTree.query (-1 will use all of them)
-
       # dataset information
     Ntot        :: int     :: total number of data points
     Npoints     :: int     :: number of data points in trj_sub
@@ -46,30 +39,22 @@ class cluster_UDP:
     trj_sub     :: ndarray :: reduced data set; trj_sub=trj_tot[::stride]
     trj_shape   :: list    :: shape of initial input data (it is a list of tuples or a tuple if the input was a single ndarray)
     
-
-      # clustering in/out variables
+    # clustering information
+    ### TODO: change this to include information of index of traj+ index of frame.
+    ###       Right now will only consider the index of the frame in the concatenated trj_tot,
+    ###       which may be unpractical to use if the input data-set is composed by more trajectories.
+    ###       (This is relevant only for MSM applications)
     frame_cl_sub    :: ndarray :: index of cluster for each frame in trj_sub
     rho_sub         :: ndarray :: density for each frame in trj_sub
     filt_sub        :: ndarray :: filter value for each frame in trj_sub (either 0 or 1)
-
-      # clustering information
-      ### TODO: change this to include information of index of traj+ index of frame.
-      ###       Right now will only consider the index of the frame in the concatenated trj_tot,
-      ###       which may be unpractical to use if the input data-set is composed by more trajectories.
-      ###       This is relevant only for MSM applications
     n_clusters  :: int     :: number of clusters
     cl_idx      :: list    :: frames of trj_tot in each cluster
     frame_cl    :: ndarray :: index of cluster for each frame in trj_tot 
     rho         :: ndarray :: density for each frame in trj_tot
     filt        :: ndarray :: filter value for each frame in trj_tot (either 0 or 1)
     cl_idx      :: list    :: frames of trj_tot in each cluster
-
     cores_idx   :: list    :: frames (of trj_tot) in the core of every cluster ### TODO: maybe add this for sub/tot
-
-
     id_err      :: int     :: error flag
-    i_noise :: (default = 0.0001) random gaussian noise that will be added to your data points prior to the clustering if identical points are found. A warning will be printed. Be careful with it!
-
     """
     
     #### this should be the constructor
@@ -148,7 +133,7 @@ class cluster_UDP:
             
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
-        self.maxknn=496 ### TODO: this can become an input parameter!
+        self.__maxknn=496 ### TODO: this can become an input parameter!
         if dmat==None:
             dmat,Nlist=self.__compute_dmat(dump_dmat)
         else:
@@ -172,7 +157,7 @@ class cluster_UDP:
     def __compute_dmat(self,dump_dmat):
         print ('Computing distances')
         self.tree=cKDTree(self.trj_sub)
-        dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn+1,n_jobs=self.n_jobs)
+        dmat,Nlist=self.tree.query(self.trj_sub,k=self.__maxknn+1,n_jobs=self.n_jobs)
         
         if len(np.where(dmat[:,1]==0)[0])>0:
             print("WARNING: there are identical points!")
@@ -180,7 +165,7 @@ class cluster_UDP:
             # this maybe stupid because I'm computing distances twice...
             self.trj_sub+=np.random.normal(scale=self.i_noise,size=self.trj_sub.shape)
         self.tree=cKDTree(self.trj_sub)
-        dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn,n_jobs=self.n_jobs)
+        dmat,Nlist=self.tree.query(self.trj_sub,k=self.__maxknn,n_jobs=self.n_jobs)
         
         Nlist=Nlist[:,1:]
         dmat=dmat[:,1:]
