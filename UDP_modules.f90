@@ -711,6 +711,80 @@ contains
 
   end subroutine get_densities
 
+
+  subroutine get_k(id_err,dist_mat,Nele,dimint,Nlist,Nstar,maxknn)
+    !$ use omp_lib
+    implicit none
+
+    integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
+    integer,parameter :: minknn=8     ! minimum number of neighbours to explore
+    !!Global variables
+    real*8,intent(in) :: dist_mat(Nele,maxknn)        !
+    integer,intent(in) :: Nele                   ! Number of elements
+    integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
+
+    ! These variables are used in densities calculation and then passed to clustering
+    integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc ### dimension 2 maybe can be reduced but maybe not (before was =limit)
+    integer,intent(inout) :: Nstar(Nele)   ! N. of NN taken for comp dens
+
+    integer :: id_err
+    !! Local variables
+    integer :: limit
+    integer :: i,j,k,m,n
+    integer :: ns,ms
+    real*8 :: Vols(Nele,maxknn)
+    real*8, parameter :: pi=3.14159265359
+    real*8 :: prefactor, dimreal
+    real*8 :: Dk
+
+    id_err=0
+
+    limit=min(maxknn,int(Nele/2))
+   
+    ! get prefactor for Volume calculation
+    if (mod(dimint,2).eq.0) then
+       k=dimint/2
+       m=1
+       do i=1,k
+          m=m*i
+       enddo
+       prefactor=pi**k/(dfloat(m))
+    else
+       k=(dimint-1)/2
+       ms=0.
+       do i=1,k
+          ms=ms+dlog(dfloat(i))
+       enddo
+       ns=ms
+       do i=k+1,dimint
+          ns=ns+dlog(dfloat(i))
+       enddo
+       prefactor=2.*dexp(ms-ns+k*dlog(4*pi))
+    endif
+    dimreal=FLOAT(dimint)
+
+    Vols=prefactor*dist_mat**dimint
+    
+    do i=1,Nele
+       ! ### get nstar     
+       do k=minknn,maxknn-1
+          j=Nlist(i,k+1)
+          !Dk= -2*( log(Vols(i,k)) + log(Vols(j,k)) - 2*log(Vols(i,k)+Vols(j,k)) + log(4.) )
+          Dk= -2*k*( log(Vols(i,k)*Vols(j,k)/(Vols(i,k)+Vols(j,k))**2) + log(4.) )
+          if (Dk.gt.23.928) then
+             exit
+          endif
+          if (k.gt.limit-1) exit
+       enddo
+       Nstar(i)=k-1 ! ### ha senso?
+       if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
+    enddo
+
+    return
+
+  end subroutine get_k
+
+  
   SUBROUTINE HPSORT(N,RA,s_order)
     implicit none
     integer N,s_order(N)
