@@ -537,7 +537,6 @@ contains
     if (mod(limit,4).ne.0) then
        limit=limit+4-mod(limit,4)
     endif
-    !write(*,*) limit,maxknn ! ### what is the meaning of this limit ?
 
     ! get prefactor for Volume calculation
     if (mod(dimint,2).eq.0) then
@@ -559,7 +558,6 @@ contains
        enddo
        prefactor=2.*dexp(ms-ns+k*dlog(4*pi))
     endif
-    !write(*,*) "prefactor", prefactor
     dimreal=FLOAT(dimint)
 
     Vols=prefactor*dist_mat**dimint
@@ -577,9 +575,9 @@ contains
        enddo
        Nstar(i)=k-1 ! ### ha senso?
        if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
-    write(12345,*) i,Nstar(i),Dk
     enddo
 
+    
     do i=1,Nele
        ! ### get effective rho
        Rho_err(i)=-9.9d99
