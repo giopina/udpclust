@@ -31,7 +31,7 @@ contains
   !############################################
   !### MAIN CLUSTERING ALGORITHM SUBROUTINE ###
   !############################################
-  subroutine dp_advance(dist_mat,Cluster,Rho,Rho_err,filter,dimint,Nlist,Nstar,Nele,id_err,sensibility,maxknn)
+  subroutine dp_advance(dist_mat,Cluster,Rho,Rho_err,filter,Nlist,Nstar,Nele,id_err,sensibility,maxknn)
     !$ use omp_lib
     implicit none
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
@@ -39,7 +39,6 @@ contains
     !!Global variables
     real*8,intent(in) :: dist_mat(Nele,maxknn)       ! Distance matrix 
     integer,intent(in) :: Nele                   ! Number of elements
-    integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
     real*8, intent(in) :: sensibility
 
     ! These variables are used in densities calculation and then passed to clustering
@@ -65,7 +64,6 @@ contains
     integer :: Nclus_m                  ! Number of Cluster merged
 
     id_err=0
-    !call get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn) 
     call clustering(id_err)                      ! get Clusters
     if(Nclus.gt.1) then
        if(sensibility.gt.0.0) then
@@ -488,7 +486,7 @@ contains
     !
   end subroutine dp_advance
 
-  subroutine get_densities(id_err,dist_mat,Nele,dimint,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
+  subroutine get_densities(id_err,dist_mat,Nele,dim,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
     use critfile
     !$ use omp_lib
     implicit none
@@ -498,7 +496,7 @@ contains
     !!Global variables
     real*8,intent(in) :: dist_mat(Nele,maxknn)        !
     integer,intent(in) :: Nele                   ! Number of elements
-    integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
+    integer,intent(in) :: dim                 ! integer of dimset (avoid real*8 calc)
 
     ! These variables are used in densities calculation and then passed to clustering
     real*8,intent(inout) :: Rho(Nele)        ! Density
@@ -516,8 +514,6 @@ contains
     integer :: niter,nfilter
     !real*8,allocatable :: Vols(:)
     real*8 :: Vols(Nele,maxknn)
-    real*8, parameter :: pi=3.14159265359
-    real*8 :: prefactor
     !real*8 :: rhg,dL,rjaver,rjfit
     real*8 :: rhg,Dk,rjaver,rjfit
     real*8,allocatable :: x(:),rh(:),rjk(:)
@@ -527,7 +523,6 @@ contains
     integer :: Npart, partGood,savNstar,fin
     real*8 :: slope,yintercept
     real*8 :: temp_err,temp_rho
-    real*8 :: dimreal
 
     id_err=0
 
@@ -538,29 +533,7 @@ contains
        limit=limit+4-mod(limit,4)
     endif
 
-    ! get prefactor for Volume calculation
-    if (mod(dimint,2).eq.0) then
-       k=dimint/2
-       m=1
-       do i=1,k
-          m=m*i
-       enddo
-       prefactor=pi**k/(dfloat(m))
-    else
-       k=(dimint-1)/2
-       ms=0.
-       do i=1,k
-          ms=ms+dlog(dfloat(i))
-       enddo
-       ns=ms
-       do i=k+1,dimint
-          ns=ns+dlog(dfloat(i))
-       enddo
-       prefactor=2.*dexp(ms-ns+k*dlog(4*pi))
-    endif
-    dimreal=FLOAT(dimint)
-
-    Vols=prefactor*dist_mat**dimint
+    Vols=prefactor(dim)*dist_mat**dim
     
     do i=1,Nele
        ! ### get nstar     
@@ -712,78 +685,226 @@ contains
   end subroutine get_densities
 
 
-  subroutine get_k(id_err,dist_mat,Nele,dimint,Nlist,Nstar,maxknn)
+  subroutine get_k(id_err,Vols,Nele,dim,Nlist,Nstar,maxknn)
     !$ use omp_lib
     implicit none
 
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
     integer,parameter :: minknn=8     ! minimum number of neighbours to explore
     !!Global variables
-    real*8,intent(in) :: dist_mat(Nele,maxknn)        !
+    !real*8,intent(in) :: dist_mat(Nele,maxknn)        !
     integer,intent(in) :: Nele                   ! Number of elements
-    integer,intent(in) :: dimint                 ! integer of dimset (avoid real*8 calc)
+    integer,intent(in) :: dim                 ! integer of dimset (avoid real*8 calc)
 
     ! These variables are used in densities calculation and then passed to clustering
     integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc ### dimension 2 maybe can be reduced but maybe not (before was =limit)
     integer,intent(inout) :: Nstar(Nele)   ! N. of NN taken for comp dens
-
     integer :: id_err
     !! Local variables
     integer :: limit
-    integer :: i,j,k,m,n
-    integer :: ns,ms
-    real*8 :: Vols(Nele,maxknn)
-    real*8, parameter :: pi=3.14159265359
-    real*8 :: prefactor, dimreal
+    integer :: i,j,k
+    real*8 :: Vols(Nele,maxknn) ! the ordered spherical volumes corresponding to nn radii
     real*8 :: Dk
 
     id_err=0
-
     limit=min(maxknn,int(Nele/2))
-   
-    ! get prefactor for Volume calculation
-    if (mod(dimint,2).eq.0) then
-       k=dimint/2
-       m=1
-       do i=1,k
-          m=m*i
-       enddo
-       prefactor=pi**k/(dfloat(m))
-    else
-       k=(dimint-1)/2
-       ms=0.
-       do i=1,k
-          ms=ms+dlog(dfloat(i))
-       enddo
-       ns=ms
-       do i=k+1,dimint
-          ns=ns+dlog(dfloat(i))
-       enddo
-       prefactor=2.*dexp(ms-ns+k*dlog(4*pi))
-    endif
-    dimreal=FLOAT(dimint)
-
-    Vols=prefactor*dist_mat**dimint
+    !Vols=prefactor(dim)*dist_mat**dim
     
     do i=1,Nele
        ! ### get nstar     
        do k=minknn,maxknn-1
+       !do k=minknn,maxknn
           j=Nlist(i,k+1)
-          !Dk= -2*( log(Vols(i,k)) + log(Vols(j,k)) - 2*log(Vols(i,k)+Vols(j,k)) + log(4.) )
+          !j=Nlist(i,k)
           Dk= -2*k*( log(Vols(i,k)*Vols(j,k)/(Vols(i,k)+Vols(j,k))**2) + log(4.) )
           if (Dk.gt.23.928) then
              exit
           endif
           if (k.gt.limit-1) exit
        enddo
-       Nstar(i)=k-1 ! ### ha senso?
+       Nstar(i)=k ! ### ha senso?
        if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
     enddo
-
     return
 
   end subroutine get_k
 
+  real*8 function free_energy(Nstar,VV)
+    ! This function computes the optimal "Free energy" aka -log(Rho)
+    ! using the procedure described in Rodriguez et al. JCTC 2018
+    !
+    implicit none
+    integer, intent(in) :: Nstar
+    integer :: id_err
+    !! Local variables
+    integer :: i,j,k,m
+    integer :: niter
+    real,intent(in) :: VV(:)
+    real :: dL
+    real :: vi(Nstar)
+    logical :: viol
+    real :: a,F
+    real :: H(2,2),Hinv(2,2)
+    real :: func,sigma,t,jf
+    real :: tt,gb,ga,sa,sb,a_err
+    real :: stepmax !! This variable controls the maximum variation on the log(rho) accepted during the optimization process
+    real :: r
+    ! Variables Specific of variable kernel
+    real :: g
+    ! Variable that accounts for vi=0 --> then use kNN instead for density (error
+    ! still PAk)
+    logical :: kNN
+    real :: Rho_err
+
+    ! ### Here I'm computing the volumes of the spherical shells between neighbors
+    Vi(1)=VV(1)
+    kNN=.false.
+    do j=2,Nstar
+       Vi(j)=VV(j)-VV(j-1)
+       if ((Vi(j).eq.0).and.(.not.kNN)) then !Can this really happen? What does it mean?
+          write (*,*) "Point density estimated with k-NN" ! Am I really not doing anything if there are 2 neighbors at the same distance??
+          kNN=.true.
+       endif
+    enddo
+    
+    F=log(float(Nstar)/VV(Nstar)) ! Starting guess for F
+    a=0.  !
+    if (.not.kNN) then
+       stepmax=0.1*abs(F)
+       !H=Hessian(a,b,Nstar)
+       gb=float(Nstar)
+       ga=float(Nstar+1)*float(Nstar)/2.
+       H(1,1)=0.
+       H(1,2)=0.
+       H(2,2)=0.
+       do j=1,Nstar
+          jf=float(j)
+          tt=vi(j)*exp(F+a*jf)
+          gb=gb-tt
+          ga=ga-jf*tt
+          H(1,1)=H(1,1)-tt
+          H(1,2)=H(1,2)-jf*tt
+          H(2,2)=H(2,2)-jf*jf*tt
+       enddo
+       H(2,1)=H(1,2)
+       Hinv=matinv2(H)
+       func=100.
+       niter=0
+       do while ((func>1D-3).and.(niter.lt.1000))
+          sb=(Hinv(1,1)*gb+Hinv(1,2)*ga)
+          sa=(Hinv(2,1)*gb+Hinv(2,2)*ga)
+          niter=niter+1
+          sigma=0.1
+          if (abs(sigma*sb).gt.stepmax) then
+             sigma=abs(stepmax/sb)
+          endif
+          F=F-sigma*sb
+          a=a-sigma*sa
+          gb=float(Nstar)
+          ga=float(Nstar+1)*float(Nstar)/2.
+          H(1,1)=0. 
+          H(1,2)=0. 
+          H(2,2)=0. 
+          do j=1,Nstar
+             jf=float(j)
+             tt=vi(j)*exp(F+a*jf)
+             gb=gb-tt
+             ga=ga-jf*tt
+             H(1,1)=H(1,1)-tt
+             H(1,2)=H(1,2)-jf*tt
+             H(2,2)=H(2,2)-jf*jf*tt
+          enddo
+          H(2,1)=H(1,2)
+          Hinv=matinv2(H)
+          if ((abs(a).le.tiny(a)).or.(abs(F).le.tiny(F))) then
+             func=max(gb,ga)
+          else
+             func=max(abs(gb/F),abs(ga/a))
+          endif
+       enddo
+       H(:,:)=-H(:,:)
+       Hinv=matinv2(H)
+       a_err=sqrt(Hinv(2,2))
+    endif !.not.kNN
+    ! ### I should probably move this outside of the function...
+    free_energy=F
+    if (ISNAN(free_energy)) then
+       write (*,*) "Density NaN at point",i 
+       return
+    endif
+    if ((free_energy.gt.huge(free_energy)).or.(free_energy.lt.-huge(free_energy))) then
+       write (*,*) "Density at point", free_energy
+       return
+    endif
+    Rho_err=dsqrt(dfloat(4*Nstar+2)/dfloat(Nstar*(Nstar-1))) ! I can do this outside!
+    return
+
+  end function free_energy
+
+  pure function Hessian_L(a,F,Nstar,vi) result(H)
+    ! Computes the Hessian of the log-likelihood
+    ! L(F,A|{v_i,l}_l<=Nstar)
+    ! as in Eq. 4 of Rodriguez et al. JCTC 2018
+    real :: H(2,2) !the Hessian
+    real, intent(in) :: a,F
+    integer :: j
+    integer, intent(in) ::Nstar
+    real, intent(in):: vi(Nstar)
+    real :: jf,tt
+       
+    H(1,1)=0. !gbb
+    H(1,2)=0. !gab
+    H(2,2)=0. !gaa
+    do j=1,Nstar
+       jf=float(j)
+       tt=vi(j)*exp(F+a*jf)
+       H(1,1)=H(1,1)-tt
+       H(1,2)=H(1,2)-jf*tt
+       H(2,2)=H(2,2)-jf*jf*tt
+    enddo
+    H(2,1)=H(1,2)
+  end function Hessian_L
+
+  pure function matinv2(A) result(B)
+    !! Performs a direct calculation of the inverse of a 2×2 matrix.
+    real, intent(in) :: A(2,2)   !! Matrix
+    real             :: B(2,2)   !! Inverse matrix
+    real             :: detinv
+    ! Calculate the inverse determinant of the matrix
+    detinv = 1/(A(1,1)*A(2,2) - A(1,2)*A(2,1))
+    ! Calculate the inverse of the matrix
+    B(1,1) = +detinv * A(2,2)
+    B(2,1) = -detinv * A(2,1)
+    B(1,2) = -detinv * A(1,2)
+    B(2,2) = +detinv * A(1,1)
+  end function matinv2
+
+  real*8 function prefactor(dim)
+    ! get prefactor for Volume calculation
+    integer, intent(in) :: dim
+    integer :: k,m,i,ms,ns
+    real*8, parameter :: pi=3.14159265359
+    if (mod(dim,2).eq.0) then
+       k=dim/2
+       m=1
+       do i=1,k
+          m=m*i
+       enddo
+       prefactor=pi**k/(dfloat(m))
+    else
+       k=(dim-1)/2
+       ms=0.
+       do i=1,k
+          ms=ms+dlog(dfloat(i))
+       enddo
+       ns=ms
+       do i=k+1,dim
+          ns=ns+dlog(dfloat(i))
+       enddo
+       prefactor=2.*dexp(ms-ns+k*dlog(4*pi))
+    endif
+    return
+  end function prefactor
   
   SUBROUTINE HPSORT(N,RA,s_order)
     implicit none
