@@ -31,7 +31,7 @@ contains
   !############################################
   !### MAIN CLUSTERING ALGORITHM SUBROUTINE ###
   !############################################
-  subroutine dp_advance(dist_mat,Cluster,Rho,Rho_err,filter,Nlist,Nstar,Nele,id_err,sensibility,maxknn)
+  subroutine dp_advance(dist_mat,Cluster,Rho,Rho_err,Nlist,Nstar,Nele,id_err,sensibility,maxknn)
     !$ use omp_lib
     implicit none
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
@@ -42,13 +42,10 @@ contains
     real*8, intent(in) :: sensibility
 
     ! These variables are used in densities calculation and then passed to clustering
-    real*8,intent(in) :: Rho(Nele)        ! Density
-    real*8,intent(in) :: Rho_err(Nele)    ! Density error
-    logical,intent(in) :: filter(Nele)  ! Pnt with anomalous dens
+    real*8,intent(in) :: Rho(Nele)        ! LOGARITHM of Density
+    real*8,intent(in) :: Rho_err(Nele)    ! error on LOGARITHM of density
     integer,intent(in) :: Nlist(Nele,maxknn) ! Neighbour list within dc
     integer,intent(in) :: Nstar(Nele)   ! N. of NN taken for comp dens
-    integer :: survivors(Nele) 
-    integer :: Nsurv           
        
     integer,allocatable :: Centers(:) ! Centers of the peaks
     integer,intent(inout) :: Cluster(Nele) ! Cluster ID for the element
@@ -74,17 +71,6 @@ contains
     return
 
   contains
-    subroutine get_survivors()
-      integer :: i
-      Nsurv=0
-      do i=1,Nele
-         if (.not.filter(i)) then
-            Nsurv=Nsurv+1
-            survivors(Nsurv)=i
-         endif
-      enddo
-    end subroutine get_survivors
-    
 
     subroutine clustering(id_err)
       implicit none
@@ -111,10 +97,9 @@ contains
       ! Here I compute the probability of having density rho, g_i
       allocate (Rho_prob(Nele))
       Rho_prob(:)=0.
-      call get_survivors()
       !
       do i=1,Nele
-         Rho_prob(i)=log(Rho(i))+Rho_err(i)
+         Rho_prob(i)=Rho(i)+Rho_err(i)
       enddo
       !write(*,*) 'Rho_prob computed'
       !
@@ -291,6 +276,7 @@ contains
       integer,allocatable :: M2O(:) !conversion from merged to original cluster number
       integer :: O2M(Nclus) ! Conversion from original cluster number to its equivalent in merged
 
+      write(*,*) sensibility
       id_err=0
       Nbarr=(Nclus*Nclus-Nclus)/2 ! n. of contacts between clusters
       allocate (Barrier(Nbarr))

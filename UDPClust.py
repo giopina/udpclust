@@ -33,7 +33,7 @@ class cluster_UDP:
       # input parameters
     coring      :: bool    :: True to define core sets
     delta       :: float   :: parameter for core set definition
-    sensibility :: float   :: parameter in clusters merging
+    sens :: float   :: parameter in clusters merging
     bigdata     :: bool    :: (default = False) set True if you really want to let the program run with >100k points (it's going to be really slow)
     n_jobs      :: int     :: (default = -1) number of processor to use for cKDTree.query (-1 will use all of them)
 
@@ -50,7 +50,6 @@ class cluster_UDP:
       # clustering in/out variables
     frame_cl_sub    :: ndarray :: index of cluster for each frame in trj_sub
     rho_sub         :: ndarray :: density for each frame in trj_sub
-    filt_sub        :: ndarray :: filter value for each frame in trj_sub (either 0 or 1)
 
       # clustering information
       ### TODO: change this to include information of index of traj+ index of frame.
@@ -61,7 +60,6 @@ class cluster_UDP:
     cl_idx      :: list    :: frames of trj_tot in each cluster
     frame_cl    :: ndarray :: index of cluster for each frame in trj_tot 
     rho         :: ndarray :: density for each frame in trj_tot
-    filt        :: ndarray :: filter value for each frame in trj_tot (either 0 or 1)
     cl_idx      :: list    :: frames of trj_tot in each cluster
 
     cores_idx   :: list    :: frames (of trj_tot) in the core of every cluster ### TODO: maybe add this for sub/tot
@@ -120,7 +118,7 @@ class cluster_UDP:
         # usa isinstance(tica_traj,list/np.array) to understand which type it has
         ### TODO: maybe I have to change this because with np.concatenate I'm copying the whole trj_tot
         ###       anyway, it is a small memory consumption compared to the size of dmat and cosidering 
-        ###       that I'm storing anyway rho, filt, cl_idx, frame_cl
+        ###       that I'm storing anyway rho, cl_idx, frame_cl
         if isinstance(trj_tot,list):
             try:
                 self.trj_tot=np.concatenate(trj_tot) #this creates a copy, correct?
@@ -218,8 +216,6 @@ class cluster_UDP:
         #   density for each frame in trj_sub
         self.rho_sub=np.zeros(self.Npoints)
         rho_err=np.zeros(self.Npoints)
-        #   filter value for each frame in trj_sub (either 0 or 1)
-        self.filt_sub=np.zeros(self.Npoints,dtype=np.int32)
         #    error flag
         self.id_err=np.array(0,dtype=np.int32)
         #
@@ -227,6 +223,7 @@ class cluster_UDP:
         # 2) call fortran subroutine
         print('fortran density estimation')
         t0=time.time()
+        print(self.sensibility)
         UDP_modules.dp_clustering.get_densities(self.id_err,dmat,self.dim,self.rho_sub,rho_err,Nlist,Nstar)
 
         #UDP_modules.dp_clustering.get_k(self.id_err,dmat,self.dim,Nlist,Nstar)
@@ -235,7 +232,7 @@ class cluster_UDP:
         
         print('fortran clustering')
         UDP_modules.dp_clustering.dp_advance\
-            (dmat,self.frame_cl_sub,self.rho_sub,rho_err,self.filt_sub,Nlist,Nstar,self.id_err,self.sensibility)
+            (dmat,self.frame_cl_sub,np.log(self.rho_sub),rho_err,Nlist,Nstar,self.id_err,self.sensibility)
 #        del dmat ### I'm not going to use it again. So delete it to make space for assignment
         print('Done!')
         print(time.time()-t0,"s")
@@ -244,7 +241,6 @@ class cluster_UDP:
         print('now post-processing')
         # 3) post processing of output
         self.frame_cl_sub-=1 #back to python enumeration in arrays
-        self.rho_sub[self.filt_sub==1]=0 ### set to zero the densities of the filtered points
 
         ### I do this later with all the points!
         self.cl_idx_sub=[ [] for i in range(np.max(self.frame_cl_sub)+1)] #frames for each cluster
@@ -262,16 +258,12 @@ class cluster_UDP:
         self.centers_idx=np.array(centers_idx_sub)*self.stride ### TODO check if this is correct!
         # (if you provided multiple input trajectories the idx will refer to a "concatenated trajectory". This can probably be fixed)
         self.centers_rho=np.array(self.centers_rho)
-        # 4) assign densities of nearest-neighbours to the filtered points
-        self.__assign_rho_to_filtered()
 
         # 5) assign trj_tot points to the clusters
         #   index of cluster for each frame in trj_tot
         self.frame_cl=np.zeros(self.Ntot,dtype=np.int32)
         #   density for each frame in trj_tot
         self.rho=np.zeros(self.Ntot)
-        #   filter value for each frame in trj_tot (either 0 or 1)
-        self.filt=np.zeros(self.Ntot,dtype=np.int32)
         #   frames of trj_tot for each cluster
         self.cl_idx=[ [] for i in range(np.max(self.frame_cl_sub)+1)] 
 
@@ -281,8 +273,7 @@ class cluster_UDP:
             self.frame_cl=self.frame_cl_sub
         #   density for each frame in trj_tot
             self.rho=self.rho_sub
-        #   filter value for each frame in trj_tot (either 0 or 1)
-            self.filt=self.filt_sub
+
             self.cl_idx=[ [] for i in range(np.max(self.frame_cl)+1)] #frames for each cluster
             i=0
             for i_cl in self.frame_cl:
@@ -318,7 +309,6 @@ class cluster_UDP:
 
             self.frame_cl[ib*lb:(ib+1)*lb]=self.frame_cl_sub[idxs]
             self.rho[ib*lb:(ib+1)*lb]=self.rho_sub[idxs]
-            self.filt[ib*lb:(ib+1)*lb]=self.filt_sub[idxs]
             ##################
         for iframe in range(self.Ntot):
             icl=self.frame_cl[iframe]
@@ -329,23 +319,6 @@ class cluster_UDP:
         print ("finished postprocessing")
         return 
     #END FUNCTION __CLUSTERING
-
-    def __assign_rho_to_filtered(self):
-        """ assign densities of nearest-neighbours to the filtered points 
-        """### !!! TODO check this
-        f1=np.where(self.filt_sub==1)[0]
-        f0=np.where(self.filt_sub==0)[0]
-        
-        frames1=self.trj_sub[f1]
-        frames0=self.trj_sub[f0]
-        if f1.shape[0]>0: # you need this check because the parallel version crashes for empty input
-            tree0=cKDTree(frames0)
-            idxs=tree0.query(frames1,n_jobs=self.n_jobs)[1]
-            self.rho_sub[f1]=self.rho_sub[f0[idxs]]
-#        for i in f1:
-#            dists=distance.cdist(self.trj_sub[f0],np.array([self.trj_sub[i]]))[:,0]
-#            imin=np.argmin(dists)
-#            self.rho_sub[i]=self.rho_sub[f0[imin]]
 
     
     def __errorcheck(self):
