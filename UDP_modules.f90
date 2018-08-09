@@ -684,6 +684,40 @@ contains
 
   end subroutine get_densities
 
+  subroutine get_dens(id_err,dist_mat,Nele,dim,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
+    !$ use omp_lib
+    implicit none
+
+    integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
+    real*8,intent(in) :: dist_mat(Nele,maxknn)        !
+    integer,intent(in) :: Nele                   ! Number of elements
+    integer,intent(in) :: dim                 ! integer of dimset (avoid real*8 calc)
+    real*8,intent(inout) :: Rho(Nele)        ! Density
+    real*8,intent(inout) :: Rho_err(Nele)    ! Density error
+    logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
+    integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc ### dimension 2 maybe can be reduced but maybe not (before was=limit)
+    integer,intent(inout) :: Nstar(Nele)   ! N. of NN taken for comp dens
+    
+    !internal variables
+    integer :: i
+    real*8 :: F
+    integer :: id_err
+    real*8 :: Vols(Nele,maxknn)
+
+    id_err=0
+
+    Vols=prefactor(dim)*dist_mat**dim
+    call get_k(id_err,Vols,Nele,dim,Nlist,Nstar,maxknn)
+    
+    do i=1,Nele
+       F=free_energy(Nstar(i),Vols(i,:))
+       Rho(i)=exp(-F)
+       Rho_err(i)=dsqrt(dfloat(4*Nstar(i)+2)/dfloat(Nstar(i)*(Nstar(i)-1))) ! I can do this outside!
+    enddo
+
+    return
+
+  end subroutine get_dens
 
   subroutine get_k(id_err,Vols,Nele,dim,Nlist,Nstar,maxknn)
     !$ use omp_lib
@@ -692,30 +726,23 @@ contains
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
     integer,parameter :: minknn=8     ! minimum number of neighbours to explore
     !!Global variables
-    !real*8,intent(in) :: dist_mat(Nele,maxknn)        !
     integer,intent(in) :: Nele                   ! Number of elements
     integer,intent(in) :: dim                 ! integer of dimset (avoid real*8 calc)
-
-    ! These variables are used in densities calculation and then passed to clustering
-    integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc ### dimension 2 maybe can be reduced but maybe not (before was =limit)
+    integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc ### dimension 2 maybe can be reduced but maybe not 
     integer,intent(inout) :: Nstar(Nele)   ! N. of NN taken for comp dens
+    real*8, intent(in) :: Vols(Nele,maxknn) ! the ordered spherical volumes corresponding to nn radii
     integer :: id_err
     !! Local variables
     integer :: limit
     integer :: i,j,k
-    real*8 :: Vols(Nele,maxknn) ! the ordered spherical volumes corresponding to nn radii
     real*8 :: Dk
 
     id_err=0
     limit=min(maxknn,int(Nele/2))
-    !Vols=prefactor(dim)*dist_mat**dim
-    
     do i=1,Nele
        ! ### get nstar     
        do k=minknn,maxknn-1
-       !do k=minknn,maxknn
           j=Nlist(i,k+1)
-          !j=Nlist(i,k)
           Dk= -2*k*( log(Vols(i,k)*Vols(j,k)/(Vols(i,k)+Vols(j,k))**2) + log(4.) )
           if (Dk.gt.23.928) then
              exit
@@ -739,22 +766,22 @@ contains
     !! Local variables
     integer :: i,j,k,m
     integer :: niter
-    real,intent(in) :: VV(:)
-    real :: dL
-    real :: vi(Nstar)
+    real*8,intent(in) :: VV(:)
+    real*8 :: dL
+    real*8 :: vi(Nstar)
     logical :: viol
-    real :: a,F
-    real :: H(2,2),Hinv(2,2)
-    real :: func,sigma,t,jf
-    real :: tt,gb,ga,sa,sb,a_err
-    real :: stepmax !! This variable controls the maximum variation on the log(rho) accepted during the optimization process
-    real :: r
+    real*8 :: a,F
+    real*8 :: H(2,2),Hinv(2,2)
+    real*8 :: func,sigma,t,jf
+    real*8 :: tt,gb,ga,sa,sb,a_err
+    real*8 :: stepmax !! This variable controls the maximum variation on the log(rho) accepted during the optimization process
+    real*8 :: r
     ! Variables Specific of variable kernel
-    real :: g
+    real*8 :: g
     ! Variable that accounts for vi=0 --> then use kNN instead for density (error
     ! still PAk)
     logical :: kNN
-    real :: Rho_err
+    !real*8 :: Rho_err
 
     ! ### Here I'm computing the volumes of the spherical shells between neighbors
     Vi(1)=VV(1)
@@ -836,7 +863,7 @@ contains
        write (*,*) "Density at point", free_energy
        return
     endif
-    Rho_err=dsqrt(dfloat(4*Nstar+2)/dfloat(Nstar*(Nstar-1))) ! I can do this outside!
+    !Rho_err=dsqrt(dfloat(4*Nstar+2)/dfloat(Nstar*(Nstar-1))) ! I can do this outside!
     return
 
   end function free_energy
@@ -845,12 +872,12 @@ contains
     ! Computes the Hessian of the log-likelihood
     ! L(F,A|{v_i,l}_l<=Nstar)
     ! as in Eq. 4 of Rodriguez et al. JCTC 2018
-    real :: H(2,2) !the Hessian
-    real, intent(in) :: a,F
+    real*8 :: H(2,2) !the Hessian
+    real*8, intent(in) :: a,F
     integer :: j
     integer, intent(in) ::Nstar
-    real, intent(in):: vi(Nstar)
-    real :: jf,tt
+    real*8, intent(in):: vi(Nstar)
+    real*8 :: jf,tt
        
     H(1,1)=0. !gbb
     H(1,2)=0. !gab
@@ -867,9 +894,9 @@ contains
 
   pure function matinv2(A) result(B)
     !! Performs a direct calculation of the inverse of a 2×2 matrix.
-    real, intent(in) :: A(2,2)   !! Matrix
-    real             :: B(2,2)   !! Inverse matrix
-    real             :: detinv
+    real*8, intent(in) :: A(2,2)   !! Matrix
+    real*8             :: B(2,2)   !! Inverse matrix
+    real*8             :: detinv
     ! Calculate the inverse determinant of the matrix
     detinv = 1/(A(1,1)*A(2,2) - A(1,2)*A(2,1))
     ! Calculate the inverse of the matrix
