@@ -223,7 +223,7 @@ class cluster_UDP:
         # 2) call fortran subroutine
         print('fortran density estimation')
         t0=time.time()
-        UDP_modules.dp_clustering.get_densities(self.id_err,dmat,self.dim,self.rho_sub,rho_err,self.filt_sub,Nlist,Nstar)
+        UDP_modules.dp_clustering.get_densities(self.id_err,dmat,self.dim,self.rho_sub,rho_err,Nlist,Nstar)
 
         #UDP_modules.dp_clustering.get_k(self.id_err,dmat,self.dim,Nlist,Nstar)
         # Log-likelihood minimization with Newton Raphson method
@@ -231,7 +231,7 @@ class cluster_UDP:
         
         print('fortran clustering')
         UDP_modules.dp_clustering.dp_advance\
-            (dmat,self.frame_cl_sub,self.rho_sub,rho_err,self.filt_sub,self.dim,Nlist,Nstar,self.id_err,self.sensibility)
+            (dmat,self.frame_cl_sub,self.rho_sub,rho_err,self.filt_sub,Nlist,Nstar,self.id_err,self.sensibility)
 #        del dmat ### I'm not going to use it again. So delete it to make space for assignment
         print('Done!')
         print(time.time()-t0,"s")
@@ -532,4 +532,3 @@ class cluster_UDP:
         fh.close()
 
     
-#    def  sample_indexes_by_cluster(sorts_coord, n_geom_samples)

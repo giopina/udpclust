@@ -111,20 +111,18 @@ contains
       ! Here I compute the probability of having density rho, g_i
       allocate (Rho_prob(Nele))
       Rho_prob(:)=0.
-      call get_survivors() 
-      !$OMP PARALLEL DO private(i,j) shared(survivors,Rho_prob,Rho,Nsurv,Rho_err)
-      do ii=1,Nsurv
-         i=survivors(ii)
-         do jj=1,Nsurv
-            j=survivors(jj)
-            Rho_prob(i)=Rho_prob(i)-log(1.d0+exp(2.*(Rho(j)-Rho(i))/sqrt(Rho_err(i)**2+Rho_err(j)**2)))
-         enddo
+      call get_survivors()
+      !
+      do i=1,Nele
+         Rho_prob(i)=log(Rho(i))+Rho_err(i)
       enddo
-      !$OMP END PARALLEL DO
-
+      !write(*,*) 'Rho_prob computed'
+      !
       ! copy of rho (not efficient, but clarifies the code) ### !!!
       allocate (Rho_copy(Nele))
+      !write(*,*) Nele
       allocate (iRho(Nele))
+      !write(*,*) iRho
       Rho_copy(:)=-Rho_prob(:)
       call HPSORT(Nele,Rho_copy,iRho) ! iRho contains the order in density (iRho(1) is the element with highest Rho...)
       deallocate (Rho_copy)      
@@ -134,12 +132,11 @@ contains
       enddo
 
       ! Now I'm getting the clusters
-      do ii=1,Nsurv
-         i=survivors(ii)
+      do i=1,Nele
          idmax=.true.
          j=1
          do while (idmax .and. (j.le.Nstar(i)))
-            if ((ordRho(i).gt.ordRho(Nlist(i,j))).and.(.not.filter(Nlist(i,j))))  idmax=.false. ! ### I could probably also change this
+            if (ordRho(i).gt.ordRho(Nlist(i,j)) ) idmax=.false.
             j=j+1
          enddo
          if (idmax) then
@@ -148,42 +145,41 @@ contains
          endif
       enddo
 
-
       allocate (Centers(Nclus))
       do i=1,Nele
          if (Cluster(i).ne.0) then
             Centers(Cluster(i))=i
          endif
       enddo
+
       if (Nclus.lt.1) then
          ! TODO: I'm actually not sure this can happen
          Cluster(:)=-1
          id_err=9
          return
       endif
-      if (Nclus.eq.1) then      
+      if (Nclus.eq.1) then
          return
       endif
-   
-      ! Assign not filtered
-      ! TODO: change it with survivors
+      
+      ! Assign points to clusters
       do j=1,Nele
          i=iRho(j)
-         if ((.not.filter(i)).and.Cluster(i).eq.0) then
+         if (Cluster(i).eq.0) then
             ig=-1
             dmin=9.9d99
             do k=1,Nstar(i)
                l=Nlist(i,k)
-               if (.not.filter(l)) then
-                  if(Rho_prob(i).lt.Rho_prob(l)) then ! ### TODO check this
-                     if (dist_mat(i,k).le.dmin) then
-                        ig=l
-                        dmin=dist_mat(i,k) 
-                     endif
+               if(Rho_prob(i).lt.Rho_prob(l)) then
+                  if (dist_mat(i,k).le.dmin) then
+                     ig=l
+                     dmin=dist_mat(i,k) 
                   endif
                endif
             enddo
             if (ig.eq.-1) then
+               ! ### TODO: check this
+               write(*,*) '*** ig=-1 *** unassigned points!'
                id_err=12
                RETURN
             else
@@ -192,88 +188,19 @@ contains
          endif
       enddo
 
-      ! Assign filtered to the same Cluster as its nearest unfiltered neighbour
-      ! what happens if all neighbors are filtered?
-      ! this can happen, at least in principle. What should I do then?
-      ! option 1: assign the point to the same cluster of the closest filtered point (you should do this in the end, but it will depend on the order you consider the points...
-      viol=.false.
-      do i=1,Nele
-         if (Cluster(i).eq.0) then
-            ig=-1
-            if(.not.filter(i)) then
-               id_err=12
-               RETURN
-            endif
-            dmin=9.9d99
-            do k=1,maxknn ! find the min d in not filt elements
-               l=Nlist(i,k)
-               if ((Cluster(l).ne.0).and.(.not.filter(l))) then
-                  d=dist_mat(i,k)
-                  if (d.le.dmin) then
-                     dmin=d
-                     ig=l
-                  endif
-               endif
-            enddo
-            if (ig.ne.-1) then
-               Cluster(i)=Cluster(ig)
-            else
-               viol=.true.
-            endif
-         endif
-      enddo
-      do while (viol) 
-         ! TODO: change this so does not depend on the order
-         viol=.false.
-         NEWASS=.FALSE.
-         Nnoass=0
-         do i=1,Nele
-            if (Cluster(i).eq.0) then
-               dmin=9.9d99
-               ig=-1
-               ! if (dmin.gt.9.8d99) then !### what if all the neighbours are filtered?
-               ! do k=1,Nstar(i) ! find the min d in filter elements
-               do k=1,maxknn ! find the min d in filter elements
-                  j=Nlist(i,k)
-                  if ((Cluster(j).ne.0)) then
-                     d=dist_mat(i,k)
-                     if (d.le.dmin) then
-                        dmin=d
-                        ig=j
-                     endif
-                  endif
-               enddo
-               if (ig.ne.-1) then
-                  Cluster(i)=Cluster(ig)
-                  NEWASS=.TRUE.
-               else
-                  viol=.true.
-                  Nnoass=Nnoass+1
-               endif
-            endif ! endif cluster(i)==0
-         enddo
-         ! check if this stopped or got stuck. It should not happen
-         IF(.NOT.NEWASS) THEN
-            WRITE(*,*) 'ERROR: cannot assign some filtered points to clusters'
-            id_err=12
-            RETURN
-
-         endif
-      enddo
-
+      
+      
       ! find border densities
       allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
       Bord(:,:)=-9.9D99
       Bord_err(:,:)=0.
       eb(:,:)=0
-
-      do i=1,Nele ! si puo' fare il loop solo su i filter?
-         if (filter(i)) CYCLE
+      
+      do i=1,Nele
          ig=-1
          dmin=9.9d99
          do k=1,Nstar(i)
             l=Nlist(i,k)
-            if (filter(l)) CYCLE
             if (cluster(l).eq.cluster(i)) CYCLE
             d=dist_mat(i,k)
             if (d.lt.dmin) then
@@ -289,7 +216,6 @@ contains
          endif
          do k=1,Nstar(i)
             l=Nlist(i,k)
-            if(filter(l)) CYCLE
             if(cluster(l).ne.cluster(i)) CYCLE
             d=9.9d99
             do jj=1,maxknn
@@ -337,15 +263,13 @@ contains
       do i=1,Nclus
          cent(i)=Rho(Centers(i))
          cent_err(i)=Rho_err(Centers(i))
-         ! Modify centers in such a way that get more survival
-         do j=1,Nele
-            if (.not.filter(j)) then !
-               if ((cluster(j).eq.i).and.((Rho(j)-Rho_err(j)).gt.(cent(i)-cent_err(i)))) then !
-                  cent(i)=Rho(j)
-                  cent_err(i)=Rho_err(j) !
-               endif
-            endif
-         enddo
+         !! Modify centers in such a way that get more survival
+         !do j=1,Nele
+         !   if ((cluster(j).eq.i).and.((Rho(j)-Rho_err(j)).gt.(cent(i)-cent_err(i)))) then !
+         !      cent(i)=Rho(j)
+         !      cent_err(i)=Rho_err(j) !
+         !   endif
+         !enddo
       enddo
       return
     end subroutine clustering
@@ -486,205 +410,7 @@ contains
     !
   end subroutine dp_advance
 
-  subroutine get_densities(id_err,dist_mat,Nele,dim,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
-    use critfile
-    !$ use omp_lib
-    implicit none
-
-    integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
-    integer,parameter :: minknn=8     ! minimum number of neighbours to explore
-    !!Global variables
-    real*8,intent(in) :: dist_mat(Nele,maxknn)        !
-    integer,intent(in) :: Nele                   ! Number of elements
-    integer,intent(in) :: dim                 ! integer of dimset (avoid real*8 calc)
-
-    ! These variables are used in densities calculation and then passed to clustering
-    real*8,intent(inout) :: Rho(Nele)        ! Density
-    real*8,intent(inout) :: Rho_err(Nele)    ! Density error
-    logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
-    integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc ### dimension 2 maybe can be reduced but maybe not (before was =limit)
-    integer,intent(inout) :: Nstar(Nele)   ! N. of NN taken for comp dens
-
-    integer :: id_err
-    !! Local variables
-    integer :: limit
-    integer :: i,j,k,m,n
-    real*8 :: is,js,ks,ms,ns
-    integer :: kadd
-    integer :: niter,nfilter
-    !real*8,allocatable :: Vols(:)
-    real*8 :: Vols(Nele,maxknn)
-    !real*8 :: rhg,dL,rjaver,rjfit
-    real*8 :: rhg,Dk,rjaver,rjfit
-    real*8,allocatable :: x(:),rh(:),rjk(:)
-    logical :: viol
-    real*8 :: xmean,ymean,a,b,c            !  FIT
-    real*8 :: xsum,ysum,x2sum,xysum
-    integer :: Npart, partGood,savNstar,fin
-    real*8 :: slope,yintercept
-    real*8 :: temp_err,temp_rho
-
-    id_err=0
-
-
-    ! ### TODO: check this. Now that I'm not dividing by 4 limit makes less sense...
-    limit=min(maxknn,nint(0.5*Nele))
-    if (mod(limit,4).ne.0) then
-       limit=limit+4-mod(limit,4)
-    endif
-
-    Vols=prefactor(dim)*dist_mat**dim
-    
-    do i=1,Nele
-       ! ### get nstar     
-       do k=minknn,maxknn         
-          j=Nlist(i,k)
-          !Dk= -2*( log(Vols(i,k)) + log(Vols(j,k)) - 2*log(Vols(i,k)+Vols(j,k)) + log(4.) )
-          Dk= -2*k*( log(Vols(i,k)*Vols(j,k)/(Vols(i,k)+Vols(j,k))**2) + log(4.) )
-          if (Dk.gt.23.928) then
-             exit
-          endif
-          if (k.gt.limit) exit
-       enddo
-       Nstar(i)=k-1 ! ### ha senso?
-       if (Nstar(i).lt.minknn) Nstar(i)=minknn ! ### puo' succedere..?
-    enddo
-
-    
-    do i=1,Nele
-       ! ### get effective rho
-       Rho_err(i)=-9.9d99
-       rhg=dfloat(Nstar(i))/Vols(i,Nstar(i)) ! Rho without fit
-       Rho(i)=rhg
-       savNstar=Nstar(i)
-       Npart=4
-       fin=Nstar(i)/2
-       do while (Npart.le.fin)
-          if (mod(Nstar(i),Npart).lt.(Nstar(i)/4)) then
-             if (mod(Nstar(i),Npart).ne.0) Nstar(i)=Nstar(i)-mod(Nstar(i),Npart)             
-             ! get inv rho of the partition
-             allocate (x(Npart),rh(Npart),rjk(Npart))
-             j=Nstar(i)/Npart
-             a=dfloat(j)
-             n=0
-             do k=1,Npart
-                n=n+j
-                x(k)=dfloat(k)
-                if (k.eq.1) then 
-                   rh(k)=Vols(i,n)/a
-                else
-                   rh(k)=(Vols(i,n)-Vols(i,n-j))/a
-                endif
-             enddo
-             xmean=sum(x(:))/dfloat(Npart)
-             ymean=sum(rh(:))/dfloat(Npart)
-             b=0.
-             c=0.
-             do k=1,Npart
-                a=x(k)-xmean
-                b=b+a*(rh(k)-ymean)
-                c=c+a*a
-             enddo
-             a=b/c
-             slope=a
-             rjfit=ymean-a*xmean
-             yintercept=rjfit
-             ! Perform jacknife resampling for estimate the error (it includes statistical
-             ! error and curvature error) 
-             xsum=sum(x(:))
-             ysum=sum(rh(:))
-             x2sum=sum(x**2)
-             xysum=sum(x*rh)
-             do n=1,Npart
-                xmean=(xsum-x(n))/dfloat(Npart-1)
-                ymean=(ysum-rh(n))/dfloat(Npart-1)
-                c=x2sum-x(n)**2
-                c=c-xmean*xmean*(Npart-1)
-                b=xysum-x(n)*rh(n)
-                b=b-xmean*ymean*(Npart-1)
-                a=b/c
-                rjk(n)=ymean-a*xmean
-             enddo
-
-             rjaver=sum (rjk(:))/dfloat(Npart)
-             temp_rho=dfloat(Npart)*rjfit-dfloat(Npart-1)*rjaver
-             temp_err=0.
-             do k=1,Npart
-                temp_err=temp_err+(rjk(k)-rjaver)**2
-             enddo
-             temp_err=dfloat(Npart-1)*temp_err/dfloat(Npart)
-             temp_rho=1./temp_rho
-             temp_err=max(temp_rho/sqrt(float(Nstar(i))),temp_rho*temp_rho*sqrt(temp_err))
-             if (temp_err.gt.Rho_err(i)) then
-                Rho(i)=temp_rho
-                Rho_err(i)=temp_err
-                partGood=Npart
-             endif
-             deallocate (x,rh,rjk)
-          endif
-          Npart=Npart+1
-          Nstar(i)=savNstar
-       enddo
-    enddo
-
-    ! Filter with neighbours density (Iterative version)
-    filter(:)=.false.
-    viol=.true.
-    niter=0
-    do i=1,Nele
-       if ((Rho(i).lt.0).or.(Rho_err(i).gt.Rho(i)).or.(Rho(i).gt.1D308)) then
-          filter(i)=.true.
-       endif
-    enddo
-
-    do while (viol)
-       niter=niter+1
-       viol=.false.
-       nfilter=0
-       do i=1,Nele
-          ! compute average density in the neighborhood and standard dev.
-          if (.not.filter(i)) then
-             ! ### come puo' essere Rho minore di zero...!?
-             if ((Rho(i).lt.0).or.(Rho_err(i).gt.Rho(i))) then
-                filter(i)=.true.
-                viol=.true.
-             else
-                a=0.
-                b=0.
-                n=0
-                ! ### questo prob si puo' fare senza loop ma bisogna pensarci (c'e' da considerare i filter...)
-                do j=1,Nstar(i) 
-                   if (.not.filter(Nlist(i,j))) then
-                      a=a+Rho(Nlist(i,j))
-                      b=b+Rho(Nlist(i,j))**2
-                      n=n+1
-                   endif
-                enddo
-                if (n.gt.0) then
-                   a=a/dfloat(n)              ! average
-                   if (a*a.le.b/float(n)) then
-                      b=dsqrt(b/dfloat(n)-a*a)    ! std. dev.
-                      if (((Rho(i)-a)).gt.sqrt(b*b+Rho_err(i)*Rho_err(i))) then
-                         filter(i)=.true.
-                         viol=.true.
-                      endif
-                   endif
-                else
-                   filter(i)=.true.
-                   viol=.true.
-                endif
-             endif
-          else
-             nfilter=nfilter+1
-          endif
-       enddo
-    enddo
-
-    return
-
-  end subroutine get_densities
-
-  subroutine get_dens(id_err,dist_mat,Nele,dim,Rho,Rho_err,filter,Nlist,Nstar,maxknn)
+  subroutine get_densities(id_err,dist_mat,Nele,dim,Rho,Rho_err,Nlist,Nstar,maxknn)
     !$ use omp_lib
     implicit none
 
@@ -694,7 +420,6 @@ contains
     integer,intent(in) :: dim                 ! integer of dimset (avoid real*8 calc)
     real*8,intent(inout) :: Rho(Nele)        ! Density
     real*8,intent(inout) :: Rho_err(Nele)    ! Density error
-    logical,intent(inout) :: filter(Nele)  ! Pnt with anomalous dens
     integer,intent(inout) :: Nlist(Nele,maxknn) ! Neighbour list within dc ### dimension 2 maybe can be reduced but maybe not (before was=limit)
     integer,intent(inout) :: Nstar(Nele)   ! N. of NN taken for comp dens
     
@@ -717,7 +442,7 @@ contains
 
     return
 
-  end subroutine get_dens
+  end subroutine get_densities
 
   subroutine get_k(id_err,Vols,Nele,dim,Nlist,Nstar,maxknn)
     !$ use omp_lib
