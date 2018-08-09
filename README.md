@@ -37,6 +37,7 @@ in the working directory
       
       i_noise :: (default = 0.0001) random gaussian noise that will be added to your data points prior to the clustering if identical points are found. A warning will be printed. Be careful with it!
 
+      maxknn :: (default = 496) maximum number of nearest neighbors to explore
 
 ##### Note:
 This branch uses the KDTree implementation which solves the problem of computing the whole distance matrix, so in principle it can be used with a very high number of points (check the input parameter bigdata).

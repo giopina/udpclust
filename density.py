@@ -25,7 +25,7 @@ traj=np.array(traj)
 print('shape of input array =',traj.shape)
 
 
-maxknn=496
+maxknn=int(sys.argv[4])
 from scipy.spatial import distance
 from scipy.spatial import cKDTree
 
@@ -66,13 +66,13 @@ import time
 print('fortran locknn')
 t0=time.time()
 UDP_modules.dp_clustering.get_densities\
-    (id_err,dmat,dim,rho,rho_err,filt,Nlist,Nstar)
+    (id_err,dmat,dim,rho,rho_err,Nlist,Nstar)
 print('Done!'),
 print(time.time()-t0),
 
 fh=open(sys.argv[3]+'_rho.dat','w')
 iframe=0
 for r in rho:
-    fh.write('%d %.6e %.6e\n'%(iframe,r,filt[iframe]))
+    fh.write('%d %d %.6e %.6e\n'%(iframe,Nstar[iframe],r,rho_err[iframe]))
     iframe+=1
 fh.close()

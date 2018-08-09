@@ -8,6 +8,10 @@ echo 'Done.'
 
 echo 'Running the density scripts...'
 ./test2.sh >log 2>err
+
+echo "Running the dpa scripts..."
+./test_dpa.sh >>log 2>>err
+
 echo 'Done.'
 
 

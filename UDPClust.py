@@ -70,10 +70,11 @@ class cluster_UDP:
     id_err      :: int     :: error flag
     i_noise :: (default = 0.0001) random gaussian noise that will be added to your data points prior to the clustering if identical points are found. A warning will be printed. Be careful with it!
 
+    maxknn :: (default = 496) maximum number of nearest neightbors to explore
     """
     #### this should be the constructor
 #    def __init__(self,dmat,dim,trj_tot,stride=1,merge=True):
-    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False,n_jobs=-1,i_noise=0.00001):
+    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False,n_jobs=-1,i_noise=0.00001,maxknn=496):
         """Constructor of the class cluster_UDP:
         input variables
 
@@ -101,6 +102,8 @@ class cluster_UDP:
         bigdata :: (default=False) set True if you really want to let the program run with >100k points (it's going to be slow and use a lot of memory)
         n_jobs :: (default = -1) number of processor to use for cKDTree.query (-1 will use all of them)
         i_noise :: (default = 0.0001) random gaussian noise that will be added to your data points prior to the clustering if identical points are found. A warning will be printed. Be careful with it!
+
+        maxknn :: (default = 496) maximum number of nearest neightbors to explore
         """
 
         #### store internal variables
@@ -111,7 +114,7 @@ class cluster_UDP:
         self.bigdata=bigdata
         self.n_jobs=n_jobs
         self.i_noise=i_noise
-
+        self.maxknn=maxknn
         # trj_tot can be a a numpy array shaped (N.frames)x(N.coords)
         #         or a list of numpy arrays
         # usa isinstance(tica_traj,list/np.array) to understand which type it has
@@ -148,7 +151,8 @@ class cluster_UDP:
             
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
-        self.maxknn=496 ### TODO: this can become an input parameter!
+        #self.maxknn=496 ### TODO: this can become an input parameter!
+        #self.maxknn=1000 ### TODO: this can become an input parameter!
         if dmat==None:
             dmat,Nlist=self.__compute_dmat(dump_dmat)
         else:

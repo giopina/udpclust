@@ -449,7 +449,7 @@ contains
     implicit none
 
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
-    integer,parameter :: minknn=8     ! minimum number of neighbours to explore
+    integer,parameter :: minknn=4     ! minimum number of neighbours to explore
     !!Global variables
     integer,intent(in) :: Nele                   ! Number of elements
     integer,intent(in) :: dim                 ! integer of dimset (avoid real*8 calc)

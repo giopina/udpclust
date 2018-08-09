@@ -12,6 +12,10 @@ rm -f out2-*.dat > /dev/null 2>/dev/null
 echo "Running the density scripts..."
 time ./test2.sh >>log 2>>err
 
+rm -f out-dpa*.dat > /dev/null 2>/dev/null
+echo "Running the dpa scripts..."
+time ./test_dpa.sh >>log 2>>err
+
 echo "Done."
 
 if ls reference/* > /dev/null
