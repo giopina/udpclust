@@ -99,7 +99,7 @@ contains
       Rho_prob(:)=0.
       !
       do i=1,Nele
-         Rho_prob(i)=Rho(i)+Rho_err(i)
+         Rho_prob(i)=Rho(i)-Rho_err(i)
       enddo
       !write(*,*) 'Rho_prob computed'
       !
@@ -117,18 +117,51 @@ contains
       enddo
 
       ! Now I'm getting the clusters
+      !open(123,file="my_centers_premerge")
+      !do i=1,Nele
+      !   idmax=.true.
+      !   j=1
+      !   do while (idmax .and. (j.le.Nstar(i)))
+      !      if (ordRho(i).gt.ordRho(Nlist(i,j)) ) idmax=.false.
+      !      j=j+1
+      !   enddo
+      !   if (idmax) then
+      !      Nclus=Nclus+1
+      !      Cluster(i)=Nclus
+      !   endif
+      !   write(123,*) Cluster(i)
+      !enddo
+      !close(123)
+
+      open(123,file="my_centers_premerge")
       do i=1,Nele
          idmax=.true.
          j=1
          do while (idmax .and. (j.le.Nstar(i)))
-            if (ordRho(i).gt.ordRho(Nlist(i,j)) ) idmax=.false.
+            if ((ordRho(i).gt.ordRho(Nlist(i,j))))  idmax=.false.
             j=j+1
          enddo
          if (idmax) then
-            Nclus=Nclus+1
-            Cluster(i)=Nclus
+            j=1
+            do while  (idmax .and. (j.lt.ordRho(i)))
+               k=1
+               l=iRho(j)
+               do while (idmax.and.(k.le.Nstar(l)))
+                  if (Nlist(l,k).eq.i) idmax=.false.
+                  k=k+1
+               enddo
+               j=j+1
+            enddo
+            if (idmax) then
+               Nclus=Nclus+1
+               Cluster(i)=Nclus
+            endif
          endif
+         write(123,*) Cluster(i)
       enddo
+      close(123)
+
+     
 
       allocate (Centers(Nclus))
       do i=1,Nele
@@ -146,14 +179,15 @@ contains
       if (Nclus.eq.1) then
          return
       endif
-      
+
       ! Assign points to clusters
       do j=1,Nele
          i=iRho(j)
          if (Cluster(i).eq.0) then
             ig=-1
             dmin=9.9d99
-            do k=1,Nstar(i)
+            !do k=1,Nstar(i)
+            do k=1,maxknn
                l=Nlist(i,k)
                if(Rho_prob(i).lt.Rho_prob(l)) then
                   if (dist_mat(i,k).le.dmin) then
@@ -173,14 +207,19 @@ contains
          endif
       enddo
 
-      
-      
+      open(1234,file='my_cluster_premerged.dat')
+      do i=1,Nele
+         write(1234,*) Cluster(i)
+      enddo
+      close(1234)
+
+
       ! find border densities
       allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
       Bord(:,:)=-9.9D99
       Bord_err(:,:)=0.
       eb(:,:)=0
-      
+
       do i=1,Nele
          ig=-1
          dmin=9.9d99
@@ -226,7 +265,7 @@ contains
             endif
          endif
       enddo ! i=1,Nele
-
+      open (22,file="my_borders_pre_merge")
       do i=1,Nclus-1
          do j=i+1,Nclus
             if (eb(i,j).ne.0) then
@@ -236,9 +275,10 @@ contains
                Bord(i,j)=0.
                Bord(j,i)=0.
             endif
+            write (22,'(i6,1x,i6,1x,i6,1x,es18.10,1x,es18.10)') i,j,eb(i,j),Bord(i,j),Bord_err(i,j)
          enddo
       enddo
-
+      close(22)
       deallocate (Rho_prob)
       deallocate (iRho)
       deallocate(ordRho)
@@ -248,13 +288,6 @@ contains
       do i=1,Nclus
          cent(i)=Rho(Centers(i))
          cent_err(i)=Rho_err(Centers(i))
-         !! Modify centers in such a way that get more survival
-         !do j=1,Nele
-         !   if ((cluster(j).eq.i).and.((Rho(j)-Rho_err(j)).gt.(cent(i)-cent_err(i)))) then !
-         !      cent(i)=Rho(j)
-         !      cent_err(i)=Rho_err(j) !
-         !   endif
-         !enddo
       enddo
       return
     end subroutine clustering
@@ -422,7 +455,8 @@ contains
     
     do i=1,Nele
        F=free_energy(Nstar(i),Vols(i,:))
-       Rho(i)=exp(-F)
+       !Rho(i)=exp(-F)
+       Rho(i)=F ! I'm computing the log of density...
        Rho_err(i)=dsqrt(dfloat(4*Nstar(i)+2)/dfloat(Nstar(i)*(Nstar(i)-1))) ! I can do this outside!
     enddo
 
