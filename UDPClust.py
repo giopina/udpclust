@@ -234,7 +234,7 @@ class cluster_UDP:
         UDP_modules.dp_clustering.dp_advance\
             (dmat,self.frame_cl_sub,self.rho_sub,rho_err,Nlist,Nstar,self.id_err,self.sensibility)
         #        del dmat ### I'm not going to use it again. So delete it to make space for assignment
-        self.rho_sub=np.log(self.rho_sub)
+        self.rho_sub=np.exp(self.rho_sub)
         print('Done!')
         print(time.time()-t0,"s")
 

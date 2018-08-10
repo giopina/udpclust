@@ -305,7 +305,7 @@ contains
       real*8,allocatable :: Barrier (:)
       real*8,allocatable :: Barrier_err (:)
       integer,allocatable :: iBarrier(:)
-      real*8 :: c1,c2,b12
+      real*8 :: c1,c2,b12,b1,b2,f1,f2,f12
       integer,allocatable :: M2O(:) !conversion from merged to original cluster number
       integer :: O2M(Nclus) ! Conversion from original cluster number to its equivalent in merged
 
@@ -345,10 +345,20 @@ contains
             j=Bcorr(k,2)
             if ((Bord(i,j).gt.0.).and.(i.ne.j)) then
                if (Survive(i).and.Survive(j)) then
-                  c1=cent(i)-sensibility*cent_err(i)
-                  c2=cent(j)-sensibility*cent_err(j)
-                  b12=Bord(i,j)+sensibility*Bord_err(i,j)
-                  if ((c1.lt.b12).or.(c2.lt.b12)) then
+                  c1=(cent(i)-Bord(i,j))/(Bord_err(i,j)+cent_err(i))
+                  c2=(cent(j)-Bord(i,j))/(Bord_err(i,j)+cent_err(j))
+
+                  !c1=cent(i)-sensibility*cent_err(i)
+                  !c2=cent(j)-sensibility*cent_err(j)
+                  !b12=Bord(i,j)+sensibility*Bord_err(i,j)
+                  b12=min(c1,c2)
+                  f1=cent(i)
+                  f2=cent(j)
+                  f12=Bord(i,j)
+                  b1=abs(f12-f1)
+                  b2=abs(f12-f2)
+                  if ((b12.lt.sensibility).or.(b1.lt.0.0).or.(b2.lt.0.0)) then
+                  !if ((c1.lt.b12).or.(c2.lt.b12)) then
                      change=.true.
                      Bord(i,j)=0.
                      Bord_err(i,j)=0.

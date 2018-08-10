@@ -36,7 +36,7 @@ def parse():
     parser.add_argument("--delta", dest="delta",help="core set definition parameter",required=False,default=1.0,type=float)
 
     parser.add_argument("--sens", dest="sens",help="sensibility parameter in the clustering algorithm. Increase it to merge more clusters.",required=False,default=1.0,type=float)
-    parser.add_argument("--maxknn", dest="maxknn",help="Maximum number of nearest-neighbors to explore.",required=False,default=1.0,type=int)
+    parser.add_argument("--maxknn", dest="maxknn",help="Maximum number of nearest-neighbors to explore.",required=False,default=496,type=int)
 
     parser.add_argument("--coring", dest="coring",help="identify core sets",action="store_true",required=False)
 
