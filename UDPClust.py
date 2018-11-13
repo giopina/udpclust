@@ -479,6 +479,7 @@ class cluster_UDP:
         del stringa
 
     def get_centers_idx(self):
+        ### TODO: this is bugged
         """This should give you the indexes of trajectory and frame of each center"""
         if isinstance(self.trj_shape,list):
             start_idxs=np.cumsum(np.array([np.sum(shp[0]) for shp in self.trj_shape]))
