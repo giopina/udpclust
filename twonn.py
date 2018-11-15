@@ -63,7 +63,7 @@ def main():
     input_file_name=sys.argv[1]
     data=np.loadtxt(input_file_name)
     stride=1
-    print data.shape
+    print(data.shape)
     dim=twonn(data,stride)
     print("The intrinsic dimension estimated is %d"%dim)
 
