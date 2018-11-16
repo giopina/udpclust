@@ -482,11 +482,11 @@ class cluster_UDP:
         ### TODO: this is bugged
         """This should give you the indexes of trajectory and frame of each center"""
         if isinstance(self.trj_shape,list):
-            start_idxs=np.cumsum(np.array([np.sum(shp[0]) for shp in self.trj_shape]))
+            start_idxs=np.cumsum(np.array([0]+[shp[0] for shp in self.trj_shape]))
             centers_idx=[]
             for icl in range(self.n_clusters):
                 tot_idx=self.centers_idx[icl]
-                trj_idx=np.searchsorted(start_idxs,tot_idx,side='right')
+                trj_idx=np.searchsorted(start_idxs,tot_idx+1,side='right')-1
                 frame_idx=tot_idx-start_idxs[trj_idx]
                 centers_idx.append([trj_idx,frame_idx])
             return np.array(centers_idx)
