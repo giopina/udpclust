@@ -309,7 +309,6 @@ contains
       integer,allocatable :: M2O(:) !conversion from merged to original cluster number
       integer :: O2M(Nclus) ! Conversion from original cluster number to its equivalent in merged
 
-      write(*,*) sensibility
       id_err=0
       Nbarr=(Nclus*Nclus-Nclus)/2 ! n. of contacts between clusters
       allocate (Barrier(Nbarr))
@@ -402,8 +401,7 @@ contains
                endif
             endif
          enddo mdo
-      enddo
-
+      enddo !while change
       ! get dictionary
       Nclus_m=0
       do i=1,Nclus
