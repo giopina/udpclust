@@ -61,9 +61,13 @@ contains
     integer :: Nclus_m                  ! Number of Cluster merged
 
     id_err=0
+    write(*,*) 'clustering'
     call clustering(id_err)                      ! get Clusters
     if(Nclus.gt.1) then
        if(sensibility.gt.0.0) then
+          write(*,*) 'finding borders'
+          call find_borders(id_err)
+          write(*,*) 'merging clusters'
           call merging(id_err) ! Generate new clusters without peaks within border error  
           Cluster=Cluster_m
        endif
@@ -77,18 +81,13 @@ contains
       integer :: id_err
       !! Local variables
       integer :: i,j,k
-      integer :: ii,jj,kk
       integer :: ig
       integer :: l
       logical :: idmax
       real*8,allocatable :: Rho_prob(:)   ! Probability of having maximum Rho
       real*8,allocatable :: Rho_copy(:)
       integer,allocatable :: iRho(:),ordRho(:)
-      integer,allocatable :: eb(:,:)    ! Border elements
       real*8 :: d,dmin
-      logical :: extend      
-      logical :: viol,newass
-      integer :: Nnoass
 
       id_err=0
       !! Identify centers: delta>dc eqv. Max(rho) within dc
@@ -117,23 +116,7 @@ contains
       enddo
 
       ! Now I'm getting the clusters
-      !open(123,file="my_centers_premerge")
-      !do i=1,Nele
-      !   idmax=.true.
-      !   j=1
-      !   do while (idmax .and. (j.le.Nstar(i)))
-      !      if (ordRho(i).gt.ordRho(Nlist(i,j)) ) idmax=.false.
-      !      j=j+1
-      !   enddo
-      !   if (idmax) then
-      !      Nclus=Nclus+1
-      !      Cluster(i)=Nclus
-      !   endif
-      !   write(123,*) Cluster(i)
-      !enddo
-      !close(123)
-
-      open(123,file="my_centers_premerge")
+      open(123,file="my_centers_premerge.dat")
       do i=1,Nele
          idmax=.true.
          j=1
@@ -207,65 +190,98 @@ contains
          endif
       enddo
 
-      open(1234,file='my_cluster_premerged.dat')
+      open(1234,file='my_cluster_premerge.dat')
       do i=1,Nele
          write(1234,*) Cluster(i)
       enddo
       close(1234)
+      
+      deallocate (Rho_prob)
+      deallocate (iRho)
+      deallocate(ordRho)
 
+      return
+    end subroutine clustering
+    !
+    subroutine find_borders(id_err)
+      integer :: id_err
+      !! Local variables
+      integer :: i,j,k
+      integer :: jj
+      integer :: ig
+      integer :: l,icl
+      integer,allocatable :: eb(:,:)    ! Border elements
+      real*8 :: d
+      real*8,allocatable :: dmin(:)
+      integer, allocatable :: imin(:)
+      
+      logical :: extend      
+      logical :: viol,newass
+      integer :: Nnoass
 
+      
       ! find border densities
       allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
       Bord(:,:)=-9.9D99
       Bord_err(:,:)=0.
       eb(:,:)=0
+      allocate (dmin(Nclus),imin(Nclus))
 
       do i=1,Nele
          ig=-1
-         dmin=9.9d99
+         dmin(:)=9.9d99
+         imin(:)=-1
          do k=1,Nstar(i)
             l=Nlist(i,k)
             if (cluster(l).eq.cluster(i)) CYCLE
             d=dist_mat(i,k)
-            if (d.lt.dmin) then
-               dmin=d
-               ig=l
+            if (d.lt.dmin(cluster(l))) then
+               dmin(cluster(l))=d
+               imin(cluster(l))=l
+               ig=1
             endif
          enddo
-         if (dmin.gt.9.8d99) CYCLE
+         !if (dmin.gt.9.8d99) CYCLE
+         if (ig.eq.-1) CYCLE
          extend=.true.
-         if (ig.eq.-1) then
-            id_err=12
-            RETURN
-         endif
+         !if (ig.eq.-1) CYCLE
+         !   id_err=12
+         !   RETURN
+         !endif
          do k=1,Nstar(i)
             l=Nlist(i,k)
             if(cluster(l).ne.cluster(i)) CYCLE
             d=9.9d99
             do jj=1,maxknn
                j=Nlist(l,jj)
+               ig=imin(cluster(j))
                if (j.eq.ig) THEN
                   d=dist_mat(l,jj)
-                  EXIT
+                  if(d.lt.dmin(cluster(j))) imin(cluster(j))=-1
                ENDIF
             enddo
-            if (d.lt.dmin) then 
-               extend=.false.
-               EXIT
+         
+            !if (d.lt.dmin) then 
+            !   extend=.false.
+            !   EXIT
+            !endif
+            ! ### TODO: here one might want to add a check to see if the cycle over the NN of i can be stopped
+         enddo ! k
+         do icl=1,Nclus
+            ig=imin(icl)
+            if (ig.gt.-1) then
+               if ((Rho(i)-Rho_err(i)).gt. Bord(cluster(i),icl)) then
+                  Bord(cluster(i),icl)=Rho(i)-Rho_err(i)
+                  Bord(icl,cluster(i))=Rho(i)-Rho_err(i)
+                  Bord_err(cluster(i),icl)=Rho_err(i)
+                  Bord_err(icl,cluster(i))=Rho_err(i)
+                  eb(cluster(i),icl)=i
+                  eb(icl,cluster(i))=i
+               endif
             endif
-         enddo
-         if (extend) then
-            if (Rho_prob(i).gt. Bord(cluster(i),cluster(ig))) then
-               Bord(cluster(i),cluster(ig))=Rho_prob(i)
-               Bord(cluster(ig),cluster(i))=Rho_prob(i)
-               Bord_err(cluster(i),cluster(ig))=Rho_err(i)
-               Bord_err(cluster(ig),cluster(i))=Rho_err(i)
-               eb(cluster(i),cluster(ig))=i
-               eb(cluster(ig),cluster(i))=i
-            endif
-         endif
+         enddo !icl
       enddo ! i=1,Nele
-      open (22,file="my_borders_pre_merge")
+      open (22,file="my_borders_premerge.dat")
       do i=1,Nclus-1
          do j=i+1,Nclus
             if (eb(i,j).ne.0) then
@@ -279,9 +295,6 @@ contains
          enddo
       enddo
       close(22)
-      deallocate (Rho_prob)
-      deallocate (iRho)
-      deallocate(ordRho)
       ! Info per graph pre automatic merging
       allocate (cent(Nclus))
       allocate (cent_err(Nclus))
@@ -290,8 +303,7 @@ contains
          cent_err(i)=Rho_err(Centers(i))
       enddo
       return
-    end subroutine clustering
-    !
+    end subroutine find_borders
     !
     subroutine merging(id_err)
       implicit none
