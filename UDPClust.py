@@ -399,7 +399,8 @@ class cluster_UDP:
                     idx+=1
                 ctrajs.append(np.array(ct))
 
-        elif isinstance(self.trj_shape,np.ndarray):
+        #el isinstance(self.trj_shape,np.ndarray):
+        else:
             old_icl=self.n_clusters # fake microstate, where u start all the trj and never enter again
             for iframe in range(self.trj_shape[0]):
                 icl=self.frame_cl[iframe]
@@ -410,10 +411,11 @@ class cluster_UDP:
                     ###
                 if old_icl==self.n_clusters and not fake_state:
                     continue
-                ct.append(old_icl)
+                ctrajs.append(old_icl)
                 #old_icl=icl ### I think this was a bug... Nov 9 17
             ctrajs=np.array(ctrajs) ### TODO: check if it is better to return a single ndarray or a list, for PyEmma compatibility
-            
+        #else:
+        #    assert 1==0, 'ERROR IN CTRAJS ASSEGNATION. wrong trj_shape'
         return ctrajs
 
     def get_core_traj_rev(self,tica_traj=None):
@@ -447,7 +449,8 @@ class cluster_UDP:
                 ctrajs.append(np.array(ct))
             ctrajs=ctrajs[::-1] # change the order of the trajectories
 
-        elif isinstance(self.trj_shape,np.ndarray):
+        #elif isinstance(self.trj_shape,np.ndarray):
+        else:
             old_icl=len(self.cores_idx) # fake microstate, where u start all the trj and never enter again
             for iframe in range(self.trj_shape[0]):
                 icl=self.frame_cl[-iframe-1]
