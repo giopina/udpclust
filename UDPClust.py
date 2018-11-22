@@ -410,7 +410,7 @@ class cluster_UDP:
                     ###
                 if old_icl==self.n_clusters and not fake_state:
                     continue
-                ct.append(old_icl)
+                ctrajs.append(old_icl)
                 #old_icl=icl ### I think this was a bug... Nov 9 17
             ctrajs=np.array(ctrajs) ### TODO: check if it is better to return a single ndarray or a list, for PyEmma compatibility
             
