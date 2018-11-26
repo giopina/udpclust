@@ -467,18 +467,21 @@ contains
     real*8 :: F
     integer :: id_err
     real*8 :: Vols(Nele,maxknn)
-
+    real*8 :: min_F
     id_err=0
 
     Vols=prefactor(dim)*dist_mat**dim
     call get_k(id_err,Vols,Nele,dim,Nlist,Nstar,maxknn)
-    
+
+    min_F=1.0
     do i=1,Nele
        F=free_energy(Nstar(i),Vols(i,:))
        !Rho(i)=exp(-F)
        Rho(i)=F ! I'm computing the log of density...
+       if (F.lt.min_F) min_F=F
        Rho_err(i)=dsqrt(dfloat(4*Nstar(i)+2)/dfloat(Nstar(i)*(Nstar(i)-1))) ! I can do this outside!
     enddo
+    Rho(:)=Rho(:)-min_F+1.0 ! This way the minimum Rho is equal to 1. (for hierarchies it does not matter so much)
 
     return
 
