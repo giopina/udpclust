@@ -171,7 +171,7 @@ class cluster_UDP:
     def __compute_dmat(self,dump_dmat):
         print ('Computing distances')
         self.tree=cKDTree(self.trj_sub)
-        dmat,Nlist=self.tree.query(self.trj_sub,k=self.__maxknn+1,n_jobs=self.n_jobs)
+        dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn+1,n_jobs=self.n_jobs)
         
         if len(np.where(dmat[:,1]==0)[0])>0:
             print("WARNING: there are identical points!")
@@ -179,7 +179,7 @@ class cluster_UDP:
             # this maybe stupid because I'm computing distances twice...
             self.trj_sub+=np.random.normal(scale=self.i_noise,size=self.trj_sub.shape)
         self.tree=cKDTree(self.trj_sub)
-        dmat,Nlist=self.tree.query(self.trj_sub,k=self.__maxknn,n_jobs=self.n_jobs)
+        dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn,n_jobs=self.n_jobs)
         
         Nlist=Nlist[:,1:]
         dmat=dmat[:,1:]
@@ -255,7 +255,6 @@ class cluster_UDP:
         # (if you provided multiple input trajectories the idx will refer to a "concatenated trajectory". This can probably be fixed)
         self.centers_rho=np.array(self.centers_rho)
 
-        self.rho_sub=save_rho
         # 4) assign densities of nearest-neighbours to the filtered points
         #self.__assign_rho_to_filtered()
         # 5) assign trj_tot points to the clusters
