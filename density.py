@@ -65,6 +65,8 @@ Nstar=np.zeros(Npoints,dtype=np.int32)
 import time
 print('fortran locknn')
 t0=time.time()
+UDP_modules.dp_clustering.get_nstar\
+       (id_err,dmat,dim,Nlist,Nstar)
 UDP_modules.dp_clustering.get_densities\
     (id_err,dmat,dim,rho,rho_err,Nlist,Nstar)
 print('Done!'),

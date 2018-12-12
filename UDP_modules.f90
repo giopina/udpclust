@@ -42,6 +42,7 @@ contains
     real*8, intent(in) :: sensibility
 
     ! These variables are used in densities calculation and then passed to clustering
+
     real*8,intent(in) :: Rho(Nele)        ! LOGARITHM of Density
     real*8,intent(in) :: Rho_err(Nele)    ! error on LOGARITHM of density
     integer,intent(in) :: Nlist(Nele,maxknn) ! Neighbour list within dc
@@ -212,7 +213,6 @@ contains
          write(1234,*) Cluster(i)
       enddo
       close(1234)
-
 
       ! find border densities
       allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
@@ -437,6 +437,7 @@ contains
     !
   end subroutine dp_advance
 
+
   subroutine get_densities(id_err,dist_mat,Nele,dim,Rho,Rho_err,Nlist,Nstar,maxknn)
     !$ use omp_lib
     implicit none
@@ -444,6 +445,7 @@ contains
     integer,intent(in) :: maxknn   ! maximum number of neighbours to explore
     real*8,intent(in) :: dist_mat(Nele,maxknn)        !
     integer,intent(in) :: Nele                   ! Number of elements
+
     integer,intent(in) :: dim                 ! integer of dimset (avoid real*8 calc)
     real*8,intent(inout) :: Rho(Nele)        ! Density
     real*8,intent(inout) :: Rho_err(Nele)    ! Density error
@@ -683,6 +685,7 @@ contains
        enddo
        prefactor=2.*dexp(ms-ns+k*dlog(4*pi))
     endif
+
     return
   end function prefactor
   

@@ -8,3 +8,4 @@ test/err
 .nfs*
 ./#*#
 UDP_modules.cpython*
+UDP_modules.cpython-36m-darwin.so.dSYM/
