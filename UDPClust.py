@@ -30,6 +30,7 @@ class cluster_UDP:
 
     internal variables:
 
+
       # input parameters
     coring      :: bool    :: True to define core sets
     delta       :: float   :: parameter for core set definition
@@ -46,32 +47,29 @@ class cluster_UDP:
     trj_sub     :: ndarray :: reduced data set; trj_sub=trj_tot[::stride]
     trj_shape   :: list    :: shape of initial input data (it is a list of tuples or a tuple if the input was a single ndarray)
     
-
-      # clustering in/out variables
+    # clustering information
+    ### TODO: change this to include information of index of traj+ index of frame.
+    ###       Right now will only consider the index of the frame in the concatenated trj_tot,
+    ###       which may be unpractical to use if the input data-set is composed by more trajectories.
+    ###       (This is relevant only for MSM applications)
     frame_cl_sub    :: ndarray :: index of cluster for each frame in trj_sub
     rho_sub         :: ndarray :: density for each frame in trj_sub
 
-      # clustering information
-      ### TODO: change this to include information of index of traj+ index of frame.
-      ###       Right now will only consider the index of the frame in the concatenated trj_tot,
-      ###       which may be unpractical to use if the input data-set is composed by more trajectories.
-      ###       This is relevant only for MSM applications
     n_clusters  :: int     :: number of clusters
     cl_idx      :: list    :: frames of trj_tot in each cluster
     frame_cl    :: ndarray :: index of cluster for each frame in trj_tot 
     rho         :: ndarray :: density for each frame in trj_tot
     cl_idx      :: list    :: frames of trj_tot in each cluster
-
     cores_idx   :: list    :: frames (of trj_tot) in the core of every cluster ### TODO: maybe add this for sub/tot
-
-
     id_err      :: int     :: error flag
+
     i_noise :: (default = 0.0001) random gaussian noise that will be added to your data points prior to the clustering if identical points are found. A warning will be printed. Be careful with it!
 
     maxknn :: (default = 496) maximum number of nearest neightbors to explore
     """
+    
     #### this should be the constructor
-#    def __init__(self,dmat,dim,trj_tot,stride=1,merge=True):
+
     def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False,n_jobs=-1,i_noise=0.00001,maxknn=496):
         """Constructor of the class cluster_UDP:
         input variables
@@ -149,13 +147,12 @@ class cluster_UDP:
             
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
-        #self.maxknn=496 ### TODO: this can become an input parameter!
-        #self.maxknn=1000 ### TODO: this can become an input parameter!
+
         if dmat==None:
             dmat,Nlist=self.__compute_dmat(dump_dmat)
         else:
+            assert stride==1,"ERROR: stride larger than one not supported when distance matrix is provided"
             assert dmat.shape[0]==self.trj_sub.shape[0],"ERROR: trj_tot[::stride] and distance matrix shapes do not match"
-
 
         ### perform the clustering
         self.__clustering(dmat,Nlist)
@@ -224,12 +221,9 @@ class cluster_UDP:
         print('fortran density estimation')
         t0=time.time()
         print(self.sensibility)
+        
         UDP_modules.dp_clustering.get_densities(self.id_err,dmat,self.dim,self.rho_sub,rho_err,Nlist,Nstar)
 
-        #UDP_modules.dp_clustering.get_k(self.id_err,dmat,self.dim,Nlist,Nstar)
-        # Log-likelihood minimization with Newton Raphson method
-        #loglike=
-        
         print('fortran clustering')
         UDP_modules.dp_clustering.dp_advance\
             (dmat,self.frame_cl_sub,self.rho_sub,rho_err,Nlist,Nstar,self.id_err,self.sensibility)
@@ -261,6 +255,8 @@ class cluster_UDP:
         # (if you provided multiple input trajectories the idx will refer to a "concatenated trajectory". This can probably be fixed)
         self.centers_rho=np.array(self.centers_rho)
 
+        # 4) assign densities of nearest-neighbours to the filtered points
+        #self.__assign_rho_to_filtered()
         # 5) assign trj_tot points to the clusters
         #   index of cluster for each frame in trj_tot
         self.frame_cl=np.zeros(self.Ntot,dtype=np.int32)
@@ -286,25 +282,18 @@ class cluster_UDP:
         ###
         
         ### this part may take some time
+        # Here I compute the distances between the points in the total traj and the
+        # ones used in the clustering. This will not happen if dmat is provided (I
+        # assume that if you already computed dmat there's not point in using a stride.
         t0=time.time()
-
         ### TODO: this can be stored just once at the beginning
         #tree=cKDTree(self.trj_sub) ### TODO add an option to turn this off and go bruteforce (may be quicker for d>20? proably not)
         lb=max(self.trj_sub.shape[0],1) ### TODO check what's a smart optimal value for the denominator
 #        print lb
         Nb=self.Ntot//lb
         for ib in range(Nb+1):
-            ### TODO: make this more efficient (fortran? c++? gpu?)            
-            frames=self.trj_tot[ib*lb:(ib+1)*lb] #                                                                               
-            #frame=self.trj_tot[iframe] # 
-            ###
-            #dists=distance.cdist(self.trj_sub,np.array([frame]))[:,0]
-            #sqdists=distance.cdist(self.trj_sub,np.array([frame]),'sqeuclidean')[:,0] # should be faster
-            #idx=np.argmin(sqdists)
-            ###
-#            sqdists=distance.cdist(self.trj_sub,frames,'sqeuclidean') # should be even faster
-#            idxs=np.argmin(sqdists,axis=0)
-#            print ib,Nb,frames.shape
+
+            frames=self.trj_tot[ib*lb:(ib+1)*lb] 
             if frames.shape[0]==0: # you need this check because the parallel version crashes for empty input
                 continue
             idxs=self.tree.query(frames,n_jobs=self.n_jobs)[1] # this is freaking fast
@@ -320,7 +309,6 @@ class cluster_UDP:
         print (time.time()-t0)
         print ("finished postprocessing")
         return 
-    #END FUNCTION __CLUSTERING
 
     
     def __errorcheck(self):
