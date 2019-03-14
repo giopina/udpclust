@@ -70,7 +70,7 @@ class cluster_UDP:
     
     #### this should be the constructor
 
-    def __init__(self,dim,trj_tot,dmat=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False,n_jobs=-1,i_noise=0.00001,maxknn=496):
+    def __init__(self,dim,trj_tot,dmat=None,Nlist=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False,n_jobs=-1,i_noise=0.00001,maxknn=496):
         """Constructor of the class cluster_UDP:
         input variables
 
@@ -153,7 +153,9 @@ class cluster_UDP:
         else:
             assert stride==1,"ERROR: stride larger than one not supported when distance matrix is provided"
             assert dmat.shape[0]==self.trj_sub.shape[0],"ERROR: trj_tot[::stride] and distance matrix shapes do not match"
-
+            assert np.allclose(dmat.shape,Nlist.shape), "ERROR: dmat and Nlist have different shapes"
+            Nlist=np.array(Nlist,dtype=np.int32,order='F')
+            
         ### perform the clustering
         self.__clustering(dmat,Nlist)
         del dmat,Nlist ### TODO this is not necessary maybe
