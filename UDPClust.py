@@ -147,8 +147,9 @@ class cluster_UDP:
             
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
-
-        if dmat==None:
+        if not isinstance(dmat, np.ndarray):
+            assert dmat==None, "ERROR: dmat was initialized to something weird..."
+            #if dmat==None:
             dmat,Nlist=self.__compute_dmat(dump_dmat)
         else:
             assert stride==1,"ERROR: stride larger than one not supported when distance matrix is provided"
