@@ -27,7 +27,7 @@ dim=int(sys.argv[3])
 dmat=np.sort(dist,axis=1)
 Nlist=np.argsort(dist,axis=1)
 
-maxknn=500
+maxknn=100
 dp.cluster_UDP(dim,traj,dmat=dmat[:,:maxknn],Nlist=Nlist[:,:maxknn],maxknn=maxknn,sens=1.0)
 
 

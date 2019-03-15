@@ -155,6 +155,8 @@ class cluster_UDP:
             assert dmat.shape[0]==self.trj_sub.shape[0],"ERROR: trj_tot[::stride] and distance matrix shapes do not match"
             assert np.allclose(dmat.shape,Nlist.shape), "ERROR: dmat and Nlist have different shapes"
             Nlist=np.array(Nlist,dtype=np.int32,order='F')
+            if self.maxknn>dmat.shape[1]:
+                self.maxknn=dmat.shape[1]
             
         ### perform the clustering
         self.__clustering(dmat,Nlist)

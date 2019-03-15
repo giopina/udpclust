@@ -69,8 +69,11 @@ contains
           write(*,*) 'finding borders'
           call find_borders(id_err)
           write(*,*) 'merging clusters'
-          call merging(id_err) ! Generate new clusters without peaks within border error  
+          call merging(id_err) ! Generate new clusters without peaks within border error
+          write(1235,*) 'cacca'
+          write(*,*) 'cacca'
           Cluster=Cluster_m
+          deallocate(Cluster_m)
        endif
     endif
     return
@@ -304,6 +307,9 @@ contains
          cent(i)=Rho(Centers(i))
          cent_err(i)=Rho_err(Centers(i))
       enddo
+      deallocate(dmin)
+      deallocate(imin)
+      deallocate(eb)
       return
     end subroutine find_borders
     !
@@ -446,6 +452,17 @@ contains
       do i=1,Nele
          Cluster_m(i)=O2M(Cluster_m(i))
       enddo
+      deallocate(Bord)
+      deallocate(Bord_err)
+      deallocate(cent)
+      deallocate(cent_err)
+      deallocate(Barrier)
+      deallocate(Barrier_err)
+      deallocate(iBarrier)
+      deallocate(Bcorr)
+
+      deallocate(M2O)
+      
       return
     end subroutine merging
     !
