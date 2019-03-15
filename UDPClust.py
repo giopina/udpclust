@@ -161,7 +161,8 @@ class cluster_UDP:
             
         ### perform the clustering
         self.__clustering(dmat,Nlist)
-        del dmat,Nlist ### TODO this is not necessary maybe
+        #return
+        #del dmat,Nlist ### TODO this is not necessary maybe
         self.__postprocessing()
         ### check for errors
         assert not self.__errorcheck(), 'ERROR: Problem in clustering'

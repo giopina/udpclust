@@ -58,7 +58,8 @@ contains
     real*8,allocatable :: cent(:)       ! Center Density
     real*8,allocatable :: cent_err(:)   ! Center Error
     ! Underscore m implies data after automatic mergin
-    integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
+    !integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
+    integer :: Cluster_m(Nele) ! Cluster ID for the element
     integer :: Nclus_m                  ! Number of Cluster merged
 
     id_err=0
@@ -70,10 +71,8 @@ contains
           call find_borders(id_err)
           write(*,*) 'merging clusters'
           call merging(id_err) ! Generate new clusters without peaks within border error
-          write(1235,*) 'cacca'
-          write(*,*) 'cacca'
-          Cluster=Cluster_m
-          deallocate(Cluster_m)
+          !Cluster=Cluster_m
+          !deallocate(Cluster_m)
        endif
     endif
     return
@@ -215,10 +214,10 @@ contains
       integer :: jj
       integer :: ig
       integer :: l,icl
-      integer,allocatable :: eb(:,:)    ! Border elements
+      integer :: eb(Nclus,Nclus)    ! Border elements
       real*8 :: d
-      real*8,allocatable :: dmin(:)
-      integer, allocatable :: imin(:)
+      real*8 :: dmin(Nclus)
+      integer :: imin(Nclus)
       
       logical :: extend      
       logical :: viol,newass
@@ -226,11 +225,12 @@ contains
 
      
       ! find border densities
-      allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
+      !allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
+      allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus))
       Bord(:,:)=-9.9D99
       Bord_err(:,:)=0.
       eb(:,:)=0
-      allocate (dmin(Nclus),imin(Nclus))
+      !allocate (dmin(Nclus),imin(Nclus))
 
       do i=1,Nele
          ig=-1
@@ -307,9 +307,9 @@ contains
          cent(i)=Rho(Centers(i))
          cent_err(i)=Rho_err(Centers(i))
       enddo
-      deallocate(dmin)
-      deallocate(imin)
-      deallocate(eb)
+      !deallocate(dmin)
+      !deallocate(imin)
+      !deallocate(eb)
       return
     end subroutine find_borders
     !
@@ -321,20 +321,21 @@ contains
       logical :: Survive (Nclus)
       logical :: change
       integer :: Nbarr
-      integer,allocatable :: Bcorr (:,:)
-      real*8,allocatable :: Barrier (:)
-      real*8,allocatable :: Barrier_err (:)
-      integer,allocatable :: iBarrier(:)
+      !integer :: Nbarr=(Nclus*Nclus-Nclus)/2
+      integer :: Bcorr ((Nclus*Nclus-Nclus)/2,2)
+      real*8 :: Barrier ((Nclus*Nclus-Nclus)/2)
+      real*8 :: Barrier_err ((Nclus*Nclus-Nclus)/2)
+      integer :: iBarrier((Nclus*Nclus-Nclus)/2)
       real*8 :: c1,c2,b12,b1,b2,f1,f2,f12
       integer,allocatable :: M2O(:) !conversion from merged to original cluster number
       integer :: O2M(Nclus) ! Conversion from original cluster number to its equivalent in merged
 
       id_err=0
       Nbarr=(Nclus*Nclus-Nclus)/2 ! n. of contacts between clusters
-      allocate (Barrier(Nbarr))
-      allocate (Barrier_err(Nbarr))
-      allocate (iBarrier(Nbarr))
-      allocate (Bcorr(Nbarr,2))
+      !allocate (Barrier(Nbarr))
+      !allocate (Barrier_err(Nbarr))
+      !allocate (iBarrier(Nbarr))
+      !allocate (Bcorr(Nbarr,2))
       n=0
       do i=1,Nclus-1
          do j=i+1,Nclus
@@ -352,8 +353,8 @@ contains
       endif
       Survive(:)=.true.
       change=.true.
-      allocate (Cluster_m(Nele))
-      Cluster_m(:)=Cluster(:)
+      !allocate (Cluster_m(Nele))
+      Cluster_m(:)=Cluster(:) !### this is probably useless!
       niter=0
       do while (change)
          niter=niter+1
@@ -452,14 +453,16 @@ contains
       do i=1,Nele
          Cluster_m(i)=O2M(Cluster_m(i))
       enddo
+
+      Cluster=Cluster_m
       deallocate(Bord)
       deallocate(Bord_err)
       deallocate(cent)
       deallocate(cent_err)
-      deallocate(Barrier)
-      deallocate(Barrier_err)
-      deallocate(iBarrier)
-      deallocate(Bcorr)
+      !deallocate(Barrier)
+      !deallocate(Barrier_err)
+      !deallocate(iBarrier)
+      !deallocate(Bcorr)
 
       deallocate(M2O)
       
