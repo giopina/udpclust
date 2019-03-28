@@ -16,6 +16,10 @@ rm -f out-dpa*.dat > /dev/null 2>/dev/null
 echo "Running the dpa scripts..."
 time ./test_dpa.sh >>log 2>>err
 
+rm -f out-rmsd*.dat > /dev/null 2>/dev/null
+echo "Running the RMSD script"
+time ./test_rmsd.sh >>log 2>>err
+
 echo "Done."
 
 if ls reference/* > /dev/null
