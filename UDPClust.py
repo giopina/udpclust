@@ -217,8 +217,9 @@ class cluster_UDP:
         #   index of cluster for each frame in trj_sub
         self.frame_cl_sub=np.zeros(self.Npoints,dtype=np.int32)
         #   density for each frame in trj_sub
+        self.F_sub=np.zeros(self.Npoints)
         self.rho_sub=np.zeros(self.Npoints)
-        rho_err=np.zeros(self.Npoints)
+        self.F_err=np.zeros(self.Npoints)
         #    error flag
         self.id_err=np.array(0,dtype=np.int32)
         #
@@ -228,13 +229,13 @@ class cluster_UDP:
         t0=time.time()
         print(self.sensibility)
         
-        UDP_modules.dp_clustering.get_densities(self.id_err,dmat,self.dim,self.rho_sub,rho_err,Nlist,Nstar)
+        UDP_modules.dp_clustering.get_densities(self.id_err,dmat,self.dim,self.F_sub,self.F_err,Nlist,Nstar)
 
         print('fortran clustering')
         UDP_modules.dp_clustering.dp_advance\
-            (dmat,self.frame_cl_sub,self.rho_sub,rho_err,Nlist,Nstar,self.id_err,self.sensibility)
+            (dmat,self.frame_cl_sub,self.F_sub,self.F_err,Nlist,Nstar,self.id_err,self.sensibility)
         #        del dmat ### I'm not going to use it again. So delete it to make space for assignment
-        self.rho_sub=np.exp(self.rho_sub)
+        self.rho_sub=np.exp(self.F_sub)
         print('Done!')
         print(time.time()-t0,"s")
 
@@ -253,8 +254,9 @@ class cluster_UDP:
             
         centers_idx_sub=[]
         self.centers_rho=[]
+        rho_prob=self.F_sub-self.F_err
         for cluster in self.cl_idx_sub:
-            centers_idx_sub.append(cluster[np.argmax(self.rho_sub[cluster])])
+            centers_idx_sub.append(cluster[np.argmax(rho_prob[cluster])])
             self.centers_rho.append(np.max(self.rho_sub[cluster]))
         self.clustercenters=self.trj_sub[np.array(centers_idx_sub)]
         self.centers_idx=np.array(centers_idx_sub)*self.stride ### TODO check if this is correct!
