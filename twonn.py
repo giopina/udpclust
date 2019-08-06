@@ -5,7 +5,7 @@
 import sys
 
 import numpy as np
-def twonn(traj,stride=1,frac=0.95):
+def twonn(traj,stride=1,frac=0.95,plot=True):
     """Function that estimates the intrinsic dimension of a dataset,
     as described in 
     Facco, E., d'Errico, M., Rodriguez, A. and Laio, A. 
@@ -38,18 +38,19 @@ def twonn(traj,stride=1,frac=0.95):
     Fnu=np.arange(0,len(nu))/float(len(nu)) # Fnu is the position in the ordered array of nu, divided by the total number of nu
 
     # plot the plot
-    plt.figure()
-    plt.plot(np.log(nu),-np.log(1.-Fnu),ls='',marker='.',ms=1)
-    plt.xlabel(r'$\log(\nu)$')
-    plt.ylabel(r'$\log(F(\nu))$')
-    # fit
-    i_min=0
-    i_max=int(len(nu)*frac)
-    m,b=np.polyfit(np.log(nu[i_min:i_max]),-np.log(1.-Fnu[i_min:i_max]),1)
-    plt.title("Fit parameters: $m=%.1f$, $q=%.3f$"%(m,b))
-    x=np.array([np.log(nu[0]),np.log(nu[-1])])
-    plt.plot(x,m*x+b)
-    plt.show()
+    #plt.figure()
+    if plot:
+        plt.plot(np.log(nu),-np.log(1.-Fnu),ls='',marker='.',ms=1)
+        plt.xlabel(r'$\log(\nu)$')
+        plt.ylabel(r'$\log(F(\nu))$')
+        # fit
+        i_min=0
+        i_max=int(len(nu)*frac)
+        m,b=np.polyfit(np.log(nu[i_min:i_max]),-np.log(1.-Fnu[i_min:i_max]),1)
+        plt.title("Fit parameters: $m=%.1f$, $q=%.3f$"%(m,b))
+        x=np.array([np.log(nu[0]),np.log(nu[-1])])
+        plt.plot(x,m*x+b)
+        #    plt.show()
     return int(round(m))
 
 def main():
@@ -64,8 +65,10 @@ def main():
     data=np.loadtxt(input_file_name)
     stride=1
     print(data.shape)
+    plt.figure()
     dim=twonn(data,stride)
     print("The intrinsic dimension estimated is %d"%dim)
-
+    plt.show()
+    
 if __name__ == "__main__":
     main()
