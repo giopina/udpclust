@@ -166,14 +166,15 @@ class cluster_UDP:
         self.__postprocessing()
         ### check for errors
         assert not self.__errorcheck(), 'ERROR: Problem in clustering'
-
+        
         ### core sets
         if self.coring:
             #            self.find_core_sets(R_CORE=np.exp(-self.delta))
             self.find_core_sets(delta=self.delta)
             #        else:
             #            self.find_core_sets(R_CORE=1.)
-
+            
+            
     def __compute_dmat(self,dump_dmat):
         print ('Computing distances')
         self.tree=cKDTree(self.trj_sub)

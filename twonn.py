@@ -5,7 +5,7 @@
 import sys
 
 import numpy as np
-def twonn(traj,stride=1,frac=0.95,plot=True):
+def twonn(traj,stride=1,frac=0.95,plot=False):
     """Function that estimates the intrinsic dimension of a dataset,
     as described in 
     Facco, E., d'Errico, M., Rodriguez, A. and Laio, A. 
@@ -66,7 +66,7 @@ def main():
     stride=1
     print(data.shape)
     plt.figure()
-    dim=twonn(data,stride)
+    dim=twonn(data,stride,plot=True)
     print("The intrinsic dimension estimated is %d"%dim)
     plt.show()
     
