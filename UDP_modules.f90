@@ -61,15 +61,16 @@ contains
     !integer,allocatable :: Cluster_m(:) ! Cluster ID for the element
     integer :: Cluster_m(Nele) ! Cluster ID for the element
     integer :: Nclus_m                  ! Number of Cluster merged
-
+    logical :: verbose=.FALSE.
+    
     id_err=0
-    write(*,*) 'clustering'
+    if(verbose) write(*,*) 'clustering'
     call clustering(id_err)                      ! get Clusters
     if(Nclus.gt.1) then
        if(sensibility.gt.0.0) then
-          write(*,*) 'finding borders'
+          if(verbose) write(*,*) 'finding borders'
           call find_borders(id_err)
-          write(*,*) 'merging clusters'
+          if(verbose) write(*,*) 'merging clusters'
           call merging(id_err) ! Generate new clusters without peaks within border error
           !Cluster=Cluster_m
           !deallocate(Cluster_m)
@@ -171,7 +172,7 @@ contains
          i=iRho(j)
          if (Cluster(i).eq.0) then
             ig=-1
-            dmin=9.9d99
+            dmin=9.9d9
             !do k=1,Nstar(i)
             do k=1,maxknn
                l=Nlist(i,k)
@@ -223,18 +224,16 @@ contains
       logical :: viol,newass
       integer :: Nnoass
 
-     
       ! find border densities
       !allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus),eb(Nclus,Nclus))
       allocate (Bord(Nclus,Nclus),Bord_err(Nclus,Nclus))
-      Bord(:,:)=-9.9D99
+      Bord(:,:)=-9.9D9
       Bord_err(:,:)=0.
       eb(:,:)=0
       !allocate (dmin(Nclus),imin(Nclus))
-
       do i=1,Nele
          ig=-1
-         dmin(:)=9.9d99
+         dmin(:)=9.9d9 !### controlla questo
          imin(:)=-1
          do k=1,Nstar(i)
             l=Nlist(i,k)
@@ -256,7 +255,8 @@ contains
          do k=1,Nstar(i)
             l=Nlist(i,k)
             if(cluster(l).ne.cluster(i)) CYCLE
-            d=9.9d99
+            !d=9.9d99
+            d=9.9d9
             do jj=1,maxknn
                j=Nlist(l,jj)
                ig=imin(cluster(j))
@@ -265,7 +265,6 @@ contains
                   if(d.lt.dmin(cluster(j))) imin(cluster(j))=-1
                ENDIF
             enddo
-         
             !if (d.lt.dmin) then 
             !   extend=.false.
             !   EXIT

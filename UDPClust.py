@@ -111,6 +111,7 @@ class cluster_UDP:
         self.n_jobs=n_jobs
         self.i_noise=i_noise
         self.maxknn=maxknn
+        
         # trj_tot can be a a numpy array shaped (N.frames)x(N.coords)
         #         or a list of numpy arrays
         # usa isinstance(tica_traj,list/np.array) to understand which type it has
@@ -137,13 +138,14 @@ class cluster_UDP:
         self.stride=stride
         self.trj_sub=self.trj_tot[::self.stride]
         assert self.trj_sub.shape[0]>1, 'ERROR: stride is too large, the subset contains only one point'
-
+        
         if not self.bigdata:
             assert self.trj_sub.shape[0]<100000, 'WARNING: the size of the distance matrix will be large. Maybe you should decrease the stride.(run with bigdata=True to skip this check)'
 
         self.Ntot=self.trj_tot.shape[0]
         self.Npoints=self.trj_sub.shape[0]
-
+        if self.maxknn>=self.Npoints:
+            self.maxknn=self.Npoints-1
             
         ### compute the distance matrix if not provided 
         ###  (in this way it will be deleted at the end of the function. suggested to avoid large memory consumption)
@@ -186,6 +188,7 @@ class cluster_UDP:
             # this maybe stupid because I'm computing distances twice...
             self.trj_sub+=np.random.normal(scale=self.i_noise,size=self.trj_sub.shape)
         self.tree=cKDTree(self.trj_sub)
+        print(dmat.shape,Nlist.shape,self.maxknn)
         dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn,n_jobs=self.n_jobs)
         
         Nlist=Nlist[:,1:]
