@@ -65,7 +65,7 @@ Other internal variables are
 # AUTHORS
 This class was written by Giovanni Pinamonti, SISSA, Trieste, 2016
 
-The fortran modules are based on a program written by Alex Rodriguez.
+The fortran modules are based on a program written by Alex Rodriguez, available [here](https://github.com/alexdepremia/Advanced-Density-Peaks).
 
 Please cite d'Errico et al. [3] if you use this.
 
