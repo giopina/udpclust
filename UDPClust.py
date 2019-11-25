@@ -70,7 +70,7 @@ class cluster_UDP:
     
     #### this should be the constructor
 
-    def __init__(self,dim,trj_tot,dmat=None,Nlist=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False,n_jobs=-1,i_noise=0.00001,maxknn=496):
+    def __init__(self,dim,trj_tot,dmat=None,Nlist=None,stride=1,dump_dmat=False,coring=True,sens=1.0,delta=1.0,bigdata=False,n_jobs=-1,i_noise=0.00001,maxknn=496,verbose=False):
         """Constructor of the class cluster_UDP:
         input variables
 
@@ -111,6 +111,7 @@ class cluster_UDP:
         self.n_jobs=n_jobs
         self.i_noise=i_noise
         self.maxknn=maxknn
+        self.verbose=verbose
         
         # trj_tot can be a a numpy array shaped (N.frames)x(N.coords)
         #         or a list of numpy arrays
@@ -178,7 +179,7 @@ class cluster_UDP:
             
             
     def __compute_dmat(self,dump_dmat):
-        print ('Computing distances')
+        if self.verbose: print ('Computing distances')
         self.tree=cKDTree(self.trj_sub)
         dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn+1,n_jobs=self.n_jobs)
         
@@ -188,7 +189,7 @@ class cluster_UDP:
             # this maybe stupid because I'm computing distances twice...
             self.trj_sub+=np.random.normal(scale=self.i_noise,size=self.trj_sub.shape)
         self.tree=cKDTree(self.trj_sub)
-        print(dmat.shape,Nlist.shape,self.maxknn)
+        if self.verbose: print(dmat.shape,Nlist.shape,self.maxknn)
         dmat,Nlist=self.tree.query(self.trj_sub,k=self.maxknn,n_jobs=self.n_jobs)
         
         Nlist=Nlist[:,1:]
@@ -229,22 +230,22 @@ class cluster_UDP:
         #
         Nstar=np.zeros(self.Npoints,dtype=np.int32)
         # 2) call fortran subroutine
-        print('fortran density estimation')
+        if self.verbose: print('fortran density estimation')
         t0=time.time()
-        print(self.sensibility)
+        if self.verbose: print('Z (sensibility) is',self.sensibility)
         
         UDP_modules.dp_clustering.get_densities(self.id_err,dmat,self.dim,self.F_sub,self.F_err,Nlist,Nstar)
 
-        print('fortran clustering')
+        if self.verbose: print('fortran clustering')
         UDP_modules.dp_clustering.dp_advance\
             (dmat,self.frame_cl_sub,self.F_sub,self.F_err,Nlist,Nstar,self.id_err,self.sensibility)
         #        del dmat ### I'm not going to use it again. So delete it to make space for assignment
         self.rho_sub=np.exp(self.F_sub)
-        print('Done!')
-        print(time.time()-t0,"s")
+        if self.verbose: print('Done!')
+        if self.verbose: print(time.time()-t0,"s")
 
     def __postprocessing(self):
-        print('now post-processing')
+        if self.verbose: print('now post-processing')
         # 3) post processing of output
         self.frame_cl_sub-=1 #back to python enumeration in arrays
 
@@ -279,7 +280,7 @@ class cluster_UDP:
 
         ### if stride==1 don't recompute distances:
         if self.stride==1:
-            print ('assign strided points')
+            if self.verbose: print ('assign strided points')
             self.frame_cl=self.frame_cl_sub
         #   density for each frame in trj_tot
             self.rho=self.rho_sub
@@ -318,8 +319,8 @@ class cluster_UDP:
             self.cl_idx[icl].append(iframe)
         ###
         self.n_clusters=len(self.cl_idx)
-        print (time.time()-t0)
-        print ("finished postprocessing")
+        if self.verbose: print (time.time()-t0)
+        if self.verbose: print ("finished postprocessing")
         return 
 
     
@@ -346,7 +347,7 @@ class cluster_UDP:
         if delta!=None:
             self.delta=delta
         R_CORE=np.exp(-self.delta)
-        print (" Identifying core sets using a cutoff of %s with respect to the peak density" % R_CORE)
+        if self.verbose: print (" Identifying core sets using a cutoff of %s with respect to the peak density" % R_CORE)
         self.cores_idx=[  [] for i in range(len(self.cl_idx))]
         k_cl=0
         for cluster in self.cl_idx:
@@ -467,9 +468,9 @@ class cluster_UDP:
 
     def dump_dmat(self,name):
         ### I don't know if this works
-        print ('computing distance matrix')
+        if self.verbose: print ('computing distance matrix')
         dmat=distance.pdist(self.trj_tot)
-        print ('writing distance matrix on file',name+'_udp-dmat.dat')
+        if self.verbose: print ('writing distance matrix on file',name+'_udp-dmat.dat')
         k=0
         stringa=''
         for i in range(self.Npoints):
