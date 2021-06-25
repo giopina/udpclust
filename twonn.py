@@ -48,8 +48,8 @@ def twonn(traj,stride=1,frac=0.95,plot=False):
         plt.xlabel(r'$\log(\nu)$')
         plt.ylabel(r'$\log(F(\nu))$')
         plt.title("Fit parameters: $m=%.1f$, $q=%.3f$"%(m,b))
-        x=np.array([np.log(nu[0]),np.log(nu[-1])])
-        plt.plot(x,m*x+b)
+        x=np.array([np.log(nu[i_min]),np.log(nu[i_max])])
+        plt.plot(x,m*x+b,color='r',lw=2,ls='--')
         #    plt.show()
     return int(round(m))
 
